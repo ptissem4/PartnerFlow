@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { User, Product, Payout } from '../data/mockData';
 import {
@@ -60,7 +61,7 @@ const getDateRange = (preset: DateRangePreset, customStart?: Date, customEnd?: D
     return { start, end };
 };
 
-const StatCard: React.FC<{ title: string; value: string; icon: JSX.Element; }> = ({ title, value, icon }) => (
+const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode; }> = ({ title, value, icon }) => (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow flex items-center">
         <div className="p-3 rounded-full bg-cyan-100 dark:bg-cyan-900/50 mr-4">
             {icon}
@@ -90,7 +91,6 @@ const SuperAdminAnalytics: React.FC<SuperAdminAnalyticsProps> = ({ users, produc
     const statsInPeriod = useMemo(() => {
         const creators = users.filter(u => u.roles.includes('creator') && u.joinDate && new Date(u.joinDate) >= start && new Date(u.joinDate) <= end).length;
         const affiliates = users.filter(u => u.roles.includes('affiliate') && u.joinDate && new Date(u.joinDate) >= start && new Date(u.joinDate) <= end).length;
-        // FIX: Property 'creationDate' does not exist on type 'Product'. Did you mean 'creation_date'?
         const newProducts = products.filter(p => new Date(p.creation_date) >= start && new Date(p.creation_date) <= end).length;
         const commissions = payouts
             .flatMap(p => p.sales)
@@ -131,7 +131,6 @@ const SuperAdminAnalytics: React.FC<SuperAdminAnalyticsProps> = ({ users, produc
         const monthlyData: { [key: string]: number } = {};
 
         products.forEach(product => {
-            // FIX: Property 'creationDate' does not exist on type 'Product'. Did you mean 'creation_date'?
             const month = product.creation_date.substring(0, 7);
             if (!monthlyData[month]) monthlyData[month] = 0;
             monthlyData[month]++;

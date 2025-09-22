@@ -21,9 +21,7 @@ const ClientManagement: React.FC<ClientManagementProps> = ({ clients, allUsers, 
     const clientData = useMemo(() => {
         return clients.map(client => {
             const affiliateCount = allUsers.filter(u => u.partnerIds?.includes(client.id)).length;
-            // FIX: Property 'userId' does not exist on type 'Product'. Did you mean 'user_id'?
             const productCount = allProducts.filter(p => p.user_id === client.id).length;
-            // FIX: Property 'userId' does not exist on type 'Payment'. Did you mean 'user_id'?
             const ltv = allPayments.filter(p => p.user_id === client.id).reduce((sum, p) => sum + p.amount, 0);
             return { ...client, affiliateCount, productCount, ltv };
         })
@@ -44,9 +42,7 @@ const ClientManagement: React.FC<ClientManagementProps> = ({ clients, allUsers, 
     
     if (selectedClient) {
         const clientAffiliates = allUsers.filter(u => u.partnerIds?.includes(selectedClient.id));
-        // FIX: Property 'userId' does not exist on type 'Product'. Did you mean 'user_id'?
         const clientProducts = allProducts.filter(p => p.user_id === selectedClient.id);
-        // FIX: Property 'userId' does not exist on type 'Payment'. Did you mean 'user_id'?
         const clientPayments = allPayments.filter(p => p.user_id === selectedClient.id);
 
         return <ClientDetail 

@@ -37,7 +37,6 @@ const Products: React.FC<ProductsProps> = ({ products, showToast, currentPlan, c
         setIsAddModalOpen(true);
     };
     
-    // FIX: Update function to accept Partial<Product> to handle various update shapes
     const handleSaveProduct = async (productData: Partial<Product>, id?: number) => {
         if (id) { // Editing
             const { id: _, creation_date, sales_count, clicks, ...updateData } = productData;

@@ -4,7 +4,6 @@ import { Plan } from '../App';
 
 interface AddProductModalProps {
   onClose: () => void;
-  // FIX: Use Partial<Product> for more flexible updates
   onSave: (product: Partial<Product>, id?: number) => void;
   productToEdit: Product | null;
   currentPlan: Plan;

@@ -52,7 +52,6 @@ const PartnerflowAffiliates: React.FC<PartnerflowAffiliatesProps> = ({ affiliate
     };
 
     const duePayouts = useMemo(() => payouts.filter(p => p.status === 'Due'), [payouts]);
-    // FIX: Property 'dueDate' does not exist on type 'Payout'. Did you mean 'due_date'?
     const historyPayouts = useMemo(() => payouts.filter(p => p.status !== 'Due').sort((a,b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime()), [payouts]);
     const totalDueAmount = useMemo(() => duePayouts.reduce((sum, p) => sum + p.amount, 0), [duePayouts]);
 
@@ -134,7 +133,6 @@ const PartnerflowAffiliates: React.FC<PartnerflowAffiliatesProps> = ({ affiliate
                        {[...duePayouts, ...historyPayouts].map(payout => (
                             <tr key={payout.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                                 <td scope="row" className="flex items-center px-6 py-4 text-gray-900 whitespace-nowrap dark:text-white">
-                                    {/* FIX: Correct property names 'affiliateAvatar' and 'affiliateName' */}
                                     <img className="w-10 h-10 rounded-full" src={payout.affiliate_avatar} alt={payout.affiliate_name} />
                                     <div className="pl-3">
                                         <div className="text-base font-semibold">{payout.affiliate_name}</div>

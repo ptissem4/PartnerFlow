@@ -8,7 +8,6 @@ import ConfirmationModal from './ConfirmationModal';
 interface ProductDetailProps {
     product: Product;
     onBack: () => void;
-    // FIX: Update prop type to handle partial updates and include the ID
     onUpdateProduct: (product: Partial<Product>, id: number) => void;
     showToast: (message: string) => void;
     currentPlan: Plan;
@@ -40,14 +39,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onUpdate
             updatedCreatives = [...product.creatives, creativeData];
             showToast("Creative added successfully!");
         }
-        // FIX: Pass partial update and ID
         onUpdateProduct({ creatives: updatedCreatives }, product.id);
     };
     
     const handleDeleteCreative = () => {
         if (creativeToDelete) {
             const updatedCreatives = product.creatives.filter(c => c.id !== creativeToDelete.id);
-            // FIX: Pass partial update and ID
             onUpdateProduct({ creatives: updatedCreatives }, product.id);
             setCreativeToDelete(null);
             showToast("Creative deleted successfully.");
@@ -61,13 +58,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onUpdate
             {isEditProductModalOpen && 
                 <AddProductModal 
                     onClose={() => setIsEditProductModalOpen(false)}
-                    // FIX: Pass partial data and ID to onUpdateProduct
                     onSave={(updatedProduct) => {
                         onUpdateProduct(updatedProduct, product.id);
                         setIsEditProductModalOpen(false);
                     }}
                     productToEdit={product}
-                    // FIX: Removed invalid 'allProducts' prop
                     currentPlan={currentPlan}
                     currentUser={currentUser}
                 />
@@ -100,7 +95,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onUpdate
                     <div className="flex justify-between items-start">
                         <div>
                             <h2 className="text-3xl font-bold text-gray-800 dark:text-white">{product.name}</h2>
-                            {/* FIX: Property 'salesPageUrl' does not exist on type 'Product'. */}
                             <a href={product.sales_page_url} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-600 dark:text-cyan-500 hover:underline">{product.sales_page_url}</a>
                         </div>
                         <button onClick={() => setIsEditProductModalOpen(true)} className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">Edit Product</button>

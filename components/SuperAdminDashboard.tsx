@@ -119,7 +119,6 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ payments, cli
         });
 
         const totalRevenue = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
-        // FIX: Property 'userId' does not exist on type 'Payment'. Did you mean 'user_id'?
         const activeCustomers = new Set(filteredPayments.map(p => p.user_id)).size;
         const mrr = calculateMRR(endDate, clients, planDetails);
         

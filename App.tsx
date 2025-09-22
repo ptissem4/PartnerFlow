@@ -1,7 +1,5 @@
 
 
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
@@ -30,6 +28,7 @@ import StripeConnectPage from './components/StripeConnectPage';
 import OnboardingModal from './components/OnboardingModal';
 import Communicate from './components/Communicate';
 import NotFoundPage from './components/NotFoundPage';
+import LoadingSpinner from './components/LoadingSpinner';
 import { 
     planDetails as initialPlanDetails,
     platformSettings as initialPlatformSettings,
@@ -42,7 +41,6 @@ import {
     PlatformSettings as PlatformSettingsType,
     UserSettings,
     UserRole,
-    // FIX: Import CommissionTier type
     CommissionTier
 } from './data/mockData';
 
@@ -76,6 +74,7 @@ const App: React.FC = () => {
   const [appView, setAppView] = useState<AppView>('landing');
   const [signupRefCode, setSignupRefCode] = useState<string | null>(null);
   const [isOnboarding, setIsOnboarding] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [adminActivePage, setAdminActivePage] = useState<AdminPage>('AdminDashboard');
@@ -109,16 +108,20 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    setIsLoading(true);
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setIsLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (!session) {
         setCurrentUser(null);
+        setUserSettings(null);
         setAppView('landing');
       }
+      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -127,6 +130,9 @@ const App: React.FC = () => {
   useEffect(() => {
     if (session) {
         fetchUserProfile(session.user.id);
+    } else {
+        setCurrentUser(null);
+        setUserSettings(null);
     }
   }, [session]);
 
@@ -160,13 +166,14 @@ const App: React.FC = () => {
             id: session.user.id,
             email: session.user.email,
             name: session.user.email, // default name to email
+            avatar: `https://i.pravatar.cc/150?u=${session.user.email}`, // Add default avatar
             roles: ['affiliate'], // default role
             status: 'Active',
             joinDate: new Date().toISOString().split('T')[0],
           }).select().single();
         
         if (creationError) {
-          console.error("Failed to auto-create profile:", creationError);
+          console.error("Failed to auto-create profile:", creationError.message);
           handleSupabaseLogout();
           return;
         }
@@ -359,7 +366,6 @@ const App: React.FC = () => {
       return;
     }
     
-    // FIX: Cannot find name 'CommissionTier'
     const applicableTier = product.commission_tiers
         .filter((tier: CommissionTier) => product.sales_count >= tier.threshold)
         .sort((a: CommissionTier, b: CommissionTier) => b.threshold - a.threshold)[0] || { rate: 0 };
@@ -722,6 +728,14 @@ const App: React.FC = () => {
   };
   
   const renderAppContent = () => {
+    if (isLoading) {
+        return <LoadingSpinner fullPage />;
+    }
+
+    if (session && (!currentUser || !userSettings)) {
+        return <LoadingSpinner fullPage />;
+    }
+    
     if (appView === 'app' && currentUser && userSettings) {
         const isSuperAdmin = currentUser.roles.includes('super_admin');
         const mainContent = isSuperAdmin 
@@ -813,7 +827,7 @@ const App: React.FC = () => {
                         onNavigateToPartnerflowSignup={() => setAppView('partnerflow_affiliate_signup')} 
                     />;
         case 'login':
-            return <LoginPage onLogin={handlePasswordLogin} onBack={() => setAppView('landing')} users={[]} onNavigateToRegister={() => setAppView('register')} />;
+            return <LoginPage onLogin={handlePasswordLogin} onBack={() => setAppView('landing')} onNavigateToRegister={() => setAppView('register')} />;
         case 'register':
             return <RegistrationPage onSignup={handleSupabaseSignup} onBack={() => setAppView('landing')} />;
         case 'signup':

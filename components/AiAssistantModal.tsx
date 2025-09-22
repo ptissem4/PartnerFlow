@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState } from 'react';
 import { GoogleGenAI } from '@google/genai';
 
@@ -54,14 +55,11 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ onClose, onApplyTex
         I'm thrilled to announce...`;
 
         try {
-            // FIX: Use new GoogleGenAI({apiKey: ...}) for initialization
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-            // FIX: Use correct model 'gemini-2.5-flash' and API call structure
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
             });
-            // FIX: Access response text directly from .text property
             setGeneratedText(response.text);
         } catch (e) {
             console.error(e);

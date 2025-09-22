@@ -77,7 +77,6 @@ const Dashboard: React.FC<DashboardProps> = ({ affiliates, products, payouts, on
         .slice(0, 5);
 
     const topProducts = [...products]
-        // FIX: Property 'salesCount' does not exist on type 'Product'. Did you mean 'sales_count'?
         .sort((a, b) => b.sales_count - a.sales_count)
         .slice(0, 5);
 
@@ -184,7 +183,6 @@ const Dashboard: React.FC<DashboardProps> = ({ affiliates, products, payouts, on
                         <p className="font-medium text-gray-800 dark:text-white">{product.name}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">${product.price}</p>
                     </div>
-                    {/* FIX: Property 'salesCount' does not exist on type 'Product'. Did you mean 'sales_count'? */}
                     <span className="font-semibold text-gray-800 dark:text-white bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md">{product.sales_count} sales</span>
                 </li>
                 ))}

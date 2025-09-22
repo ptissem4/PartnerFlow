@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Page, AdminPage } from '../App';
 import { User } from '../data/mockData';
@@ -13,7 +14,8 @@ interface SidebarProps {
 
 const NavItem: React.FC<{
   page: Page | AdminPage;
-  icon: JSX.Element;
+  // FIX: Replaced JSX.Element with React.ReactNode to resolve namespace error.
+  icon: React.ReactNode;
   label: string;
   activePage: Page | AdminPage;
   onClick: (page: Page | AdminPage) => void;

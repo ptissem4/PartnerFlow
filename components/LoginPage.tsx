@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
-import { User } from '../data/mockData';
 
 interface LoginPageProps {
   onLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   onBack: () => void;
-  users: User[];
   onNavigateToRegister: () => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack, users, onNavigateToRegister }) => {
+const demoUsers = [
+    { email: 'admin@partnerflow.io', description: 'Super Admin' },
+    { email: 'alex.doe@example.com', description: 'Creator (On Trial)' },
+    { email: 'jenna.s@example.com', description: 'Creator & Affiliate' },
+    { email: 'eva.gardner@example.com', description: 'Creator (Trial Expired)' },
+    { email: 'onboarding.tester@example.com', description: 'Creator (Onboarding Demo)' },
+    { email: 'elena.r@example.com', description: 'Affiliate' },
+];
+
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack, onNavigateToRegister }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +45,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack, users, onNavigat
     setIsLoading(false);
   };
   
-  const demoUsers = users.filter(u => ['admin@partnerflow.io', 'alex.doe@example.com', 'jenna.s@example.com', 'eva.gardner@example.com', 'onboarding.tester@example.com', 'elena.r@example.com'].includes(u.email));
-
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-800 p-4">
       <div className="w-full max-w-md">
@@ -115,36 +120,24 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack, users, onNavigat
             <h3 className="font-semibold text-center text-gray-700 dark:text-gray-300 mb-2">Demo Accounts</h3>
             <p className="text-xs text-center text-gray-500 dark:text-gray-400 mb-4">Click an email to copy and paste. Use password: <code className="font-mono bg-gray-200 dark:bg-gray-700 px-1 rounded">password</code></p>
             <ul className="space-y-2 text-sm">
-                {demoUsers.map(user => {
-                    let roleDescription = user.roles.join(' & ').replace('super_admin', 'Super Admin');
-                    if (user.email === 'alex.doe@example.com') {
-                        roleDescription += ' (On Trial)';
-                    }
-                    if (user.email === 'eva.gardner@example.com') {
-                        roleDescription = 'Creator (Trial Expired)';
-                    }
-                    if (user.email === 'onboarding.tester@example.com') {
-                        roleDescription = 'Creator (Onboarding Demo)';
-                    }
-                    return (
-                        <li key={user.id} className="flex justify-between items-center">
-                            <span 
-                                onClick={() => {
-                                    navigator.clipboard.writeText(user.email);
-                                    setEmail(user.email);
-                                    setPassword('password');
-                                }}
-                                className="font-mono text-gray-600 dark:text-gray-400 cursor-pointer hover:text-cyan-500"
-                                title="Click to copy email & enter demo password"
-                            >
-                                {user.email}
-                            </span>
-                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 capitalize bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md text-right">
-                               {roleDescription}
-                            </span>
-                        </li>
-                    )
-                })}
+                {demoUsers.map(user => (
+                    <li key={user.email} className="flex justify-between items-center">
+                        <span 
+                            onClick={() => {
+                                navigator.clipboard.writeText(user.email);
+                                setEmail(user.email);
+                                setPassword('password');
+                            }}
+                            className="font-mono text-gray-600 dark:text-gray-400 cursor-pointer hover:text-cyan-500"
+                            title="Click to copy email & enter demo password"
+                        >
+                            {user.email}
+                        </span>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 capitalize bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md text-right">
+                           {user.description}
+                        </span>
+                    </li>
+                ))}
             </ul>
         </div>
 
