@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
@@ -167,7 +168,7 @@ const App: React.FC = () => {
             email: session.user.email,
             name: session.user.email, // default name to email
             avatar: `https://i.pravatar.cc/150?u=${session.user.email}`, // Add default avatar
-            roles: ['affiliate'], // default role
+            // roles: ['affiliate'], // REMOVED: This is a privileged field and likely violates RLS when set from the client. The database should handle assigning a default role.
             status: 'Active',
             joinDate: new Date().toISOString().split('T')[0],
           }).select().single();
@@ -184,7 +185,7 @@ const App: React.FC = () => {
           userToSet.roles = userToSet.roles || [];
 
           // Special logic to automatically grant super_admin role
-          if (userToSet.email === 'ptissem4@hotmail.com' && !userToSet.roles.includes('super_admin')) {
+          if (userToSet.email === 'admin@partnerflow.io' && !userToSet.roles.includes('super_admin')) {
               showToast("Attempting to grant Super Admin access...");
               const updatedRoles = [...userToSet.roles, 'super_admin'];
               
@@ -469,26 +470,28 @@ const App: React.FC = () => {
   };
 
   const handleSupabaseSignup = async (name: string, companyName: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // This now relies on a trigger in Supabase to create the profile from metadata.
+    const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+            data: {
+                name: name,
+                company_name: companyName,
+                avatar: `https://i.pravatar.cc/150?u=${email}`,
+                // The trigger will be responsible for setting creator-specific defaults
+                // like roles, plan, trial, etc.
+            }
+        }
+    });
+    
     if (error) {
         console.error("Signup error:", error);
         return { success: false, error: error.message };
     }
-    if (data.user) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-            id: data.user.id, name, companyName, email,
-            avatar: `https://i.pravatar.cc/150?u=${email}`,
-            roles: ['creator'], status: 'Active',
-            joinDate: new Date().toISOString().split('T')[0],
-            currentPlan: 'Starter Plan',
-            trialEndsAt: getDateWithOffset(14),
-            onboardingStepCompleted: 0,
-        });
-        if (profileError) {
-            console.error("Error creating profile:", profileError);
-            return { success: false, error: `Error creating profile: ${profileError.message}` };
-        }
-    }
+    
+    // The previous client-side insert was removed as it was likely unauthenticated and causing RLS errors.
+    // If a profile isn't created, the auto-creation logic on first login will serve as a fallback.
     return { success: true };
   };
 
