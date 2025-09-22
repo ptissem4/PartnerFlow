@@ -2,14 +2,14 @@ import React, { useState, useMemo } from 'react';
 import { Payout, User, UserSettings } from '../data/mockData';
 import PayoutDetailModal from './PayoutDetailModal';
 import { Page } from '../App';
+import { supabase } from '../lib/supabaseClient';
 
 interface PayoutsProps {
   payouts: Payout[];
-  setPayouts: React.Dispatch<React.SetStateAction<Payout[]>>;
-  affiliates: User[];
-  userSettings: UserSettings;
+  userSettings: UserSettings | null;
   setActivePage: (page: Page) => void;
   showToast: (message: string) => void;
+  refetchData: () => void;
 }
 
 const getStatusBadge = (status: Payout['status']) => {
@@ -23,18 +23,19 @@ const getStatusBadge = (status: Payout['status']) => {
   }
 };
 
-const Payouts: React.FC<PayoutsProps> = ({ payouts, setPayouts, userSettings, setActivePage, showToast }) => {
+const Payouts: React.FC<PayoutsProps> = ({ payouts, userSettings, setActivePage, showToast, refetchData }) => {
   const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null);
   const [activeTab, setActiveTab] = useState<'due' | 'history'>('due');
 
-  const isStripeConnected = userSettings.integrations.stripe === 'Connected';
+  const isStripeConnected = userSettings?.integrations.stripe === 'Connected';
 
   const duePayouts = useMemo(() => payouts.filter(p => p.status === 'Due'), [payouts]);
-  const historyPayouts = useMemo(() => payouts.filter(p => p.status === 'Paid' || p.status === 'Scheduled').sort((a,b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()), [payouts]);
+  const historyPayouts = useMemo(() => payouts.filter(p => p.status === 'Paid' || p.status === 'Scheduled').sort((a,b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime()), [payouts]);
   const totalDueAmount = useMemo(() => duePayouts.reduce((sum, p) => sum + p.amount, 0), [duePayouts]);
 
-  const handleMassPayout = () => {
+  const handleMassPayout = async () => {
     if (!isStripeConnected) {
+        showToast("Please connect Stripe in Settings to enable payouts.");
         setActivePage('Settings');
         return;
     }
@@ -42,10 +43,19 @@ const Payouts: React.FC<PayoutsProps> = ({ payouts, setPayouts, userSettings, se
         showToast("No due payouts to process.");
         return;
     }
-    setPayouts(prevPayouts => 
-        prevPayouts.map(p => p.status === 'Due' ? { ...p, status: 'Scheduled' } : p)
-    );
-    showToast(`${duePayouts.length} payouts have been scheduled successfully!`);
+
+    const duePayoutIds = duePayouts.map(p => p.id);
+    const { error } = await supabase
+        .from('payouts')
+        .update({ status: 'Scheduled' })
+        .in('id', duePayoutIds);
+
+    if (error) {
+        showToast(`Error scheduling payouts: ${error.message}`);
+    } else {
+        showToast(`${duePayouts.length} payouts have been scheduled successfully!`);
+        refetchData();
+    }
   };
 
   const activePayouts = activeTab === 'due' ? duePayouts : historyPayouts;
@@ -111,14 +121,14 @@ const Payouts: React.FC<PayoutsProps> = ({ payouts, setPayouts, userSettings, se
               {activePayouts.map((payout) => (
                 <tr key={payout.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer" onClick={() => setSelectedPayout(payout)}>
                   <td scope="row" className="flex items-center px-6 py-4 text-gray-900 whitespace-nowrap dark:text-white">
-                    <img className="w-10 h-10 rounded-full" src={payout.affiliateAvatar} alt={`${payout.affiliateName} image`} />
+                    <img className="w-10 h-10 rounded-full" src={payout.affiliate_avatar} alt={`${payout.affiliate_name} image`} />
                     <div className="pl-3">
-                      <div className="text-base font-semibold">{payout.affiliateName}</div>
+                      <div className="text-base font-semibold">{payout.affiliate_name}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">${payout.amount.toLocaleString()}</td>
                   <td className="px-6 py-4">{payout.period}</td>
-                  <td className="px-6 py-4">{payout.dueDate}</td>
+                  <td className="px-6 py-4">{payout.due_date}</td>
                   <td className="px-6 py-4">
                     <span className={`text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full ${getStatusBadge(payout.status)}`}>
                       {payout.status}

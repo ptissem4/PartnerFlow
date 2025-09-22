@@ -4,13 +4,14 @@ import { Plan } from '../App';
 import AddProductModal from './AddProductModal';
 import ConfirmationModal from './ConfirmationModal';
 import ProductDetail from './ProductDetail';
+import { supabase } from '../lib/supabaseClient';
 
 interface ProductsProps {
     products: Product[];
-    setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
     showToast: (message: string) => void;
     currentPlan: Plan;
     currentUser: User;
+    refetchData: () => void;
 }
 
 const formatCommissionDisplay = (tiers: CommissionTier[]) => {
@@ -23,7 +24,7 @@ const formatCommissionDisplay = (tiers: CommissionTier[]) => {
     return displayText;
 };
 
-const Products: React.FC<ProductsProps> = ({ products, setProducts, showToast, currentPlan, currentUser }) => {
+const Products: React.FC<ProductsProps> = ({ products, showToast, currentPlan, currentUser, refetchData }) => {
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [productToEdit, setProductToEdit] = useState<Product | null>(null);
@@ -36,24 +37,35 @@ const Products: React.FC<ProductsProps> = ({ products, setProducts, showToast, c
         setIsAddModalOpen(true);
     };
     
-    const handleSaveProduct = (productData: Product) => {
-        if (productToEdit || selectedProduct) {
-            setProducts(products.map(p => p.id === productData.id ? productData : p));
-            showToast("Product updated successfully!");
-        } else {
-            setProducts(prev => [productData, ...prev]);
-            showToast("Product added successfully!");
+    // FIX: Update function to accept Partial<Product> to handle various update shapes
+    const handleSaveProduct = async (productData: Partial<Product>, id?: number) => {
+        if (id) { // Editing
+            const { id: _, creation_date, sales_count, clicks, ...updateData } = productData;
+            const { error } = await supabase.from('products').update(updateData).eq('id', id);
+            if(error) showToast(`Error: ${error.message}`);
+            else showToast("Product updated successfully!");
+        } else { // Creating
+            const { error } = await supabase.from('products').insert(productData);
+            if(error) showToast(`Error: ${error.message}`);
+            else showToast("Product added successfully!");
         }
+
         if (selectedProduct) {
-            setSelectedProduct(productData);
+            const { data } = await supabase.from('products').select('*').eq('id', selectedProduct.id).single();
+            if (data) setSelectedProduct(data as Product);
         }
+        
+        refetchData();
     };
     
-    const handleDeleteProduct = () => {
+    const handleDeleteProduct = async () => {
         if (productToDelete) {
-            setProducts(products.filter(p => p.id !== productToDelete.id));
+            const { error } = await supabase.from('products').delete().eq('id', productToDelete.id);
+            if (error) showToast(`Error: ${error.message}`);
+            else showToast("Product deleted successfully.");
+            
             setProductToDelete(null);
-            showToast("Product deleted successfully.");
+            refetchData();
         }
     };
 
@@ -75,7 +87,6 @@ const Products: React.FC<ProductsProps> = ({ products, setProducts, showToast, c
                     onClose={() => setIsAddModalOpen(false)} 
                     onSave={handleSaveProduct}
                     productToEdit={productToEdit}
-                    allProducts={products}
                     currentPlan={currentPlan}
                     currentUser={currentUser}
                 />
@@ -124,7 +135,7 @@ const Products: React.FC<ProductsProps> = ({ products, setProducts, showToast, c
                                         {product.name}
                                     </td>
                                     <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">${product.price.toLocaleString()}</td>
-                                    <td className="px-6 py-4">{formatCommissionDisplay(product.commissionTiers)}</td>
+                                    <td className="px-6 py-4">{formatCommissionDisplay(product.commission_tiers)}</td>
                                     <td className="px-6 py-4">{product.creatives.length}</td>
                                     <td className="px-6 py-4 text-center space-x-2">
                                         <button onClick={() => setSelectedProduct(product)} className="font-medium text-cyan-600 dark:text-cyan-500 hover:underline">Manage</button>

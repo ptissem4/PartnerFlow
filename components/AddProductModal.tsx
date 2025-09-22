@@ -4,14 +4,14 @@ import { Plan } from '../App';
 
 interface AddProductModalProps {
   onClose: () => void;
-  onSave: (product: Product) => void;
+  // FIX: Use Partial<Product> for more flexible updates
+  onSave: (product: Partial<Product>, id?: number) => void;
   productToEdit: Product | null;
-  allProducts: Product[];
   currentPlan: Plan;
   currentUser: User;
 }
 
-const AddProductModal: React.FC<AddProductModalProps> = ({ onClose, onSave, productToEdit, allProducts, currentPlan, currentUser }) => {
+const AddProductModal: React.FC<AddProductModalProps> = ({ onClose, onSave, productToEdit, currentPlan, currentUser }) => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [salesPageUrl, setSalesPageUrl] = useState('');
@@ -26,8 +26,8 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ onClose, onSave, prod
     if (isEditMode) {
         setName(productToEdit.name);
         setPrice(productToEdit.price.toString());
-        setSalesPageUrl(productToEdit.salesPageUrl);
-        setCommissionTiers(productToEdit.commissionTiers.length > 0 ? productToEdit.commissionTiers : [{ threshold: 0, rate: 20 }]);
+        setSalesPageUrl(productToEdit.sales_page_url);
+        setCommissionTiers(productToEdit.commission_tiers.length > 0 ? productToEdit.commission_tiers : [{ threshold: 0, rate: 20 }]);
         setBonuses(productToEdit.bonuses || []);
     }
   }, [productToEdit, isEditMode]);
@@ -73,21 +73,16 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ onClose, onSave, prod
     
     setError('');
     
-    const productData: Product = {
-        id: productToEdit ? productToEdit.id : Math.max(...allProducts.map(p => p.id), 0) + 1,
-        userId: currentUser.id,
+    const productData = {
+        user_id: currentUser.id,
         name,
         price: parseFloat(price),
-        salesPageUrl,
-        salesCount: productToEdit ? productToEdit.salesCount : 0,
-        clicks: productToEdit ? productToEdit.clicks : 0,
-        commissionTiers: canUseAdvancedFeatures ? commissionTiers : [commissionTiers[0]],
+        sales_page_url: salesPageUrl,
+        commission_tiers: canUseAdvancedFeatures ? commissionTiers : [commissionTiers[0]],
         bonuses: canUseAdvancedFeatures ? bonuses : [],
-        creatives: productToEdit ? productToEdit.creatives : [],
-        creationDate: productToEdit ? productToEdit.creationDate : new Date().toISOString().split('T')[0],
     };
     
-    onSave(productData);
+    onSave(productData, productToEdit?.id);
     onClose();
   };
 

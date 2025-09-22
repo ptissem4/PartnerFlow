@@ -5,13 +5,14 @@ import AffiliateDetail from './AffiliateDetail';
 import AddAffiliateModal from './AddAffiliateModal';
 import ConfirmationModal from './ConfirmationModal';
 import InviteAffiliateModal from './InviteAffiliateModal';
+import { supabase } from '../lib/supabaseClient';
 
 interface AffiliatesProps {
     affiliates: User[];
-    setUsers: React.Dispatch<React.SetStateAction<User[]>>;
     showToast: (message: string) => void;
     currentPlan: Plan;
     currentUser: User;
+    refetchData: () => void;
 }
 
 const getStatusBadge = (status: User['status']) => {
@@ -22,11 +23,12 @@ const getStatusBadge = (status: User['status']) => {
     case 'Pending':
       return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
     case 'Inactive':
+    case 'Suspended':
       return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
   }
 };
 
-const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, setUsers, showToast, currentPlan, currentUser }) => {
+const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, showToast, currentPlan, currentUser, refetchData }) => {
     const [selectedAffiliate, setSelectedAffiliate] = useState<User | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<'All' | User['status']>('All');
@@ -45,52 +47,104 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, setUsers, showToast
         setTimeout(() => setInviteLinkCopied(false), 2000);
     };
 
-    const handleStatusChange = (id: string, newStatus: User['status']) => {
-        setUsers(users => users.map(user => user.id === id ? { ...user, status: newStatus } : user));
-    };
-
-    const handleSaveAffiliate = (affiliateData: User) => {
-        setUsers(users => {
-            const userExists = users.some(u => u.id === affiliateData.id);
-            if (userExists) {
-                 showToast("Affiliate updated successfully!");
-                 return users.map(u => u.id === affiliateData.id ? affiliateData : u);
-            } else {
-                showToast("Affiliate added successfully!");
-                return [affiliateData, ...users];
-            }
-        });
-    };
-
-    const handleDeleteAffiliate = () => {
-        if (affiliateToDelete) {
-            setUsers(users => users.filter(u => u.id !== affiliateToDelete.id));
-            setAffiliateToDelete(null);
-            showToast("Affiliate deleted successfully.");
+    const handleStatusChange = async (affiliateId: string, newStatus: User['status']) => {
+        const { error } = await supabase
+            .from('partnerships')
+            .update({ status: newStatus })
+            .eq('creator_id', currentUser.id)
+            .eq('affiliate_id', affiliateId);
+        
+        if (error) {
+            showToast(`Error: ${error.message}`);
+        } else {
+            showToast('Affiliate status updated!');
+            refetchData();
         }
     };
 
-    const handleSendInvite = (email: string) => {
-        // Simulate sending an invite by adding the user as a 'Pending' affiliate
-        const newUser: User = {
-            id: crypto.randomUUID(),
-            name: `(${email.split('@')[0]})`, // Placeholder name
-            email: email,
-            roles: ['affiliate'],
-            avatar: `https://i.pravatar.cc/150?u=${email}`, // Consistent avatar for email
-            sales: 0,
-            commission: 0,
-            clicks: 0,
-            status: 'Pending',
-            joinDate: new Date().toISOString().split('T')[0],
-            conversionRate: 0,
-            referralCode: email.split('@')[0].replace(/[^a-z0-9]/gi, '-').slice(0, 15),
-            partnerIds: [currentUser.id],
+    const handleSaveAffiliate = async (affiliateData: User) => {
+        const isEdit = affiliates.some(u => u.id === affiliateData.id);
+        
+        const profileData = {
+            id: affiliateData.id,
+            name: affiliateData.name,
+            email: affiliateData.email,
+            coupon_code: affiliateData.couponCode,
+            avatar: affiliateData.avatar || `https://i.pravatar.cc/150?u=${affiliateData.email}`,
+            roles: ['affiliate']
         };
 
-        setUsers(prev => [newUser, ...prev]);
+        if (isEdit) {
+            const { error } = await supabase.from('profiles').update(profileData).eq('id', affiliateData.id);
+            if(error) showToast(`Error: ${error.message}`);
+            else showToast("Affiliate updated!");
+        } else {
+            const { data: newProfile, error } = await supabase.from('profiles').insert(profileData).select().single();
+            if (error || !newProfile) {
+                showToast(`Error: ${error?.message}`);
+                return;
+            }
+            const { error: partnershipError } = await supabase.from('partnerships').insert({
+                creator_id: currentUser.id,
+                affiliate_id: newProfile.id,
+                status: 'Active'
+            });
+            if (partnershipError) showToast(`Error: ${partnershipError.message}`);
+            else showToast("Affiliate added and approved!");
+        }
+        refetchData();
+    };
+
+    const handleDeleteAffiliate = async () => {
+        if (affiliateToDelete) {
+            const { error } = await supabase
+                .from('partnerships')
+                .delete()
+                .eq('creator_id', currentUser.id)
+                .eq('affiliate_id', affiliateToDelete.id);
+
+            if (error) {
+                showToast(`Error: ${error.message}`);
+            } else {
+                showToast("Affiliate removed from your program.");
+            }
+            setAffiliateToDelete(null);
+            refetchData();
+        }
+    };
+
+    const handleSendInvite = async (email: string) => {
+        const { data: existingUser } = await supabase.from('profiles').select('id').eq('email', email).single();
+
+        let affiliateId = existingUser?.id;
+
+        if (!affiliateId) {
+            const { data: newProfile, error } = await supabase.from('profiles').insert({
+                name: `(${email.split('@')[0]})`, email, roles: ['affiliate'], status: 'Pending',
+                avatar: `https://i.pravatar.cc/150?u=${email}`, joinDate: new Date().toISOString().split('T')[0],
+            }).select('id').single();
+            if (error || !newProfile) {
+                showToast(`Error creating profile: ${error?.message}`);
+                return;
+            }
+            affiliateId = newProfile.id;
+        }
+
+        const { error: partnershipError } = await supabase.from('partnerships').insert({
+            creator_id: currentUser.id, affiliate_id: affiliateId, status: 'Pending'
+        }).select();
+
+        if (partnershipError) {
+             if (partnershipError.code === '23505') { // unique constraint violation
+                showToast("This affiliate is already in your program or has a pending invite.");
+            } else {
+                showToast(`Error sending invite: ${partnershipError.message}`);
+            }
+        } else {
+            showToast(`Invitation sent to ${email}.`);
+            refetchData();
+        }
         setIsInviteModalOpen(false);
-        showToast(`Invitation sent to ${email}. Affiliate added as 'Pending'.`);
     };
 
     const handleOpenAddModal = () => {
@@ -124,12 +178,12 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, setUsers, showToast
 
   return (
     <div className="space-y-6">
-    {isAddModalOpen && <AddAffiliateModal allUsers={affiliates} onClose={() => setIsAddModalOpen(false)} onSave={handleSaveAffiliate} affiliateToEdit={editingAffiliate} currentUser={currentUser}/>}
+    {isAddModalOpen && <AddAffiliateModal onClose={() => setIsAddModalOpen(false)} onSave={handleSaveAffiliate} affiliateToEdit={editingAffiliate} />}
     {isInviteModalOpen && <InviteAffiliateModal onClose={() => setIsInviteModalOpen(false)} onSend={handleSendInvite} />}
     {affiliateToDelete && (
         <ConfirmationModal
-            title="Delete Affiliate"
-            message={`Are you sure you want to delete "${affiliateToDelete.name}"? This will remove them from the program.`}
+            title="Remove Affiliate"
+            message={`Are you sure you want to remove "${affiliateToDelete.name}" from your program?`}
             onConfirm={handleDeleteAffiliate}
             onCancel={() => setAffiliateToDelete(null)}
         />
@@ -237,7 +291,7 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, setUsers, showToast
                              <div className="flex justify-center space-x-2">
                                 <button onClick={() => setSelectedAffiliate(affiliate)} className="font-medium text-cyan-600 dark:text-cyan-500 hover:underline">Details</button>
                                 <button onClick={() => handleOpenEditModal(affiliate)} className="font-medium text-blue-600 dark:text-blue-500 hover:underline">Edit</button>
-                                <button onClick={() => setAffiliateToDelete(affiliate)} className="font-medium text-red-600 dark:text-red-500 hover:underline">Delete</button>
+                                <button onClick={() => setAffiliateToDelete(affiliate)} className="font-medium text-red-600 dark:text-red-500 hover:underline">Remove</button>
                              </div>
                         )}
                     </td>

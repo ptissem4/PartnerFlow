@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
@@ -29,11 +31,6 @@ import OnboardingModal from './components/OnboardingModal';
 import Communicate from './components/Communicate';
 import NotFoundPage from './components/NotFoundPage';
 import { 
-    users as initialUsers,
-    products as initialProducts, 
-    payouts as initialPayouts,
-    payments as initialPayments,
-    communications as initialCommunications,
     planDetails as initialPlanDetails,
     platformSettings as initialPlatformSettings,
     userSettings as initialUserSettings,
@@ -44,7 +41,9 @@ import {
     Communication,
     PlatformSettings as PlatformSettingsType,
     UserSettings,
-    UserRole
+    UserRole,
+    // FIX: Import CommissionTier type
+    CommissionTier
 } from './data/mockData';
 
 
@@ -94,7 +93,7 @@ const App: React.FC = () => {
   
   const [platformSettings, setPlatformSettings] = useState<PlatformSettingsType>(initialPlatformSettings);
   const [planDetails, setPlanDetails] = useState(initialPlanDetails);
-  const [userSettings, setUserSettings] = useState<UserSettings>(initialUserSettings);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
 
   const getDateWithOffset = (days: number) => {
     const date = new Date();
@@ -138,50 +137,74 @@ const App: React.FC = () => {
   }, [currentUser]);
 
 
-  const fetchUserProfile = async (userId: string) => {
+ const fetchUserProfile = async (userId: string) => {
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') { // Ignore "exact one row was not found" error
           console.error('Error fetching profile:', error);
           handleSupabaseLogout();
           return;
       }
       
-      if (profile) {
-          let userToSet = { ...profile, roles: profile.roles || [] } as User;
+      let userToSet = profile as User | null;
 
-          // Special logic to automatically grant super_admin role to the specified user
-          if (profile.email === 'ptissem4@hotmail.com' && !userToSet.roles.includes('super_admin')) {
+      // Auto-create profile if it doesn't exist for an authenticated user
+      if (!userToSet && session?.user) {
+        const { data: newProfile, error: creationError } = await supabase
+          .from('profiles')
+          .insert({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.email, // default name to email
+            roles: ['affiliate'], // default role
+            status: 'Active',
+            joinDate: new Date().toISOString().split('T')[0],
+          }).select().single();
+        
+        if (creationError) {
+          console.error("Failed to auto-create profile:", creationError);
+          handleSupabaseLogout();
+          return;
+        }
+        userToSet = newProfile as User;
+      }
+
+      if (userToSet) {
+          userToSet.roles = userToSet.roles || [];
+
+          // Special logic to automatically grant super_admin role
+          if (userToSet.email === 'ptissem4@hotmail.com' && !userToSet.roles.includes('super_admin')) {
               showToast("Attempting to grant Super Admin access...");
               const updatedRoles = [...userToSet.roles, 'super_admin'];
               
               const { data: updatedProfile, error: updateError } = await supabase
                 .from('profiles')
                 .update({ roles: updatedRoles })
-                .eq('id', userId)
+                .eq('id', userToSet.id)
                 .select()
                 .single();
 
               if (updateError) {
                   console.error("Failed to automatically grant admin role:", updateError);
-                  showToast("Error granting admin role. Please check Supabase logs.");
+                  showToast("Error granting admin role.");
               } else if (updatedProfile) {
-                  userToSet = { ...updatedProfile, roles: updatedProfile.roles || [] } as User;
+                  userToSet = updatedProfile as User;
+                  userToSet.roles = updatedProfile.roles || [];
                   showToast("Super Admin access granted successfully!");
               }
           }
-
+          
           setCurrentUser(userToSet);
           setAppView('app');
           if (userToSet.roles.includes('creator') && (userToSet.onboardingStepCompleted || 0) < 5) {
               setIsOnboarding(true);
           }
       } else {
-        console.error('User profile not found in database.');
+        console.error('User profile not found and could not be created.');
         handleSupabaseLogout();
       }
   };
@@ -192,30 +215,76 @@ const App: React.FC = () => {
 
     const { data: settingsData } = await supabase.from('user_settings').select('*').eq('user_id', currentUser.id).single();
     if (settingsData) setUserSettings(settingsData as UserSettings);
+    else setUserSettings(initialUserSettings);
     
     const { data: platformSettingsData } = await supabase.from('platform_settings').select('*').single();
     if (platformSettingsData) setPlatformSettings(platformSettingsData as PlatformSettingsType);
 
     if (currentUser.roles.includes('super_admin')) {
         const { data: clientsData } = await supabase.from('profiles').select('*').contains('roles', ['creator']);
-        if (clientsData) setUsers(clientsData as User[]);
+        setUsers(clientsData as User[] || []);
         
         const { data: allUsersData } = await supabase.from('profiles').select('*');
-        if (allUsersData) setAllUsers(allUsersData as User[]);
+        setAllUsers(allUsersData as User[] || []);
 
         const { data: allProductsData } = await supabase.from('products').select('*');
-        if(allProductsData) setProducts(allProductsData as Product[]);
+        setProducts(allProductsData as Product[] || []);
+        
+        const { data: allPayoutsData } = await supabase.from('payouts').select('*');
+        setPayouts(allPayoutsData as Payout[] || []);
     } 
     else if (currentUser.roles.includes('creator')) {
-        const { data: affiliatesData } = await supabase.from('partnerships').select('affiliate:profiles(*)').eq('creator_id', currentUser.id);
-        if (affiliatesData) setUsers(affiliatesData.map((a: any) => a.affiliate) as User[]);
+        const { data: partnerships, error } = await supabase
+            .from('partnerships')
+            .select('status, profiles:affiliate_id (*)')
+            .eq('creator_id', currentUser.id);
+
+        if (partnerships) {
+            const affiliatesWithStatus = partnerships.map((p: any) => ({
+                ...p.profiles,
+                status: p.status,
+            }));
+            setUsers(affiliatesWithStatus as User[]);
+            
+            const affiliateIds = affiliatesWithStatus.map((a: User) => a.id);
+            if (affiliateIds.length > 0) {
+                const { data: payoutsData } = await supabase.from('payouts').select('*').in('user_id', affiliateIds);
+                setPayouts(payoutsData as Payout[] || []);
+            } else {
+                setPayouts([]);
+            }
+        } else {
+             setUsers([]);
+             setPayouts([]);
+        }
 
         const { data: productsData } = await supabase.from('products').select('*').eq('user_id', currentUser.id);
-        if (productsData) setProducts(productsData as Product[]);
+        setProducts(productsData as Product[] || []);
+
+        const { data: commsData } = await supabase.from('communications').select('*').eq('sender_id', currentUser.id);
+        setCommunications(commsData as Communication[] || []);
     }
     else if (currentUser.roles.includes('affiliate')) {
-        const { data: partnersData } = await supabase.from('partnerships').select('creator:profiles(*)').eq('affiliate_id', currentUser.id);
-        if (partnersData) setUsers(partnersData.map((p: any) => p.creator) as User[]);
+        const { data: partnerships } = await supabase.from('partnerships').select('profiles:creator_id (*)').eq('affiliate_id', currentUser.id);
+
+        if (partnerships) {
+            const partners = partnerships.map((p: any) => p.profiles);
+            setUsers(partners as User[]);
+
+            const partnerIds = partners.map((p: User) => p.id);
+            if (partnerIds.length > 0) {
+                const { data: productsData } = await supabase.from('products').select('*').in('user_id', partnerIds);
+                setProducts(productsData as Product[] || []);
+            } else {
+                setProducts([]);
+            }
+        } else {
+            setUsers([]);
+            setProducts([]);
+        }
+
+        const { data: payoutsData } = await supabase.from('payouts').select('*').eq('user_id', currentUser.id);
+        setPayouts(payoutsData as Payout[] || []);
     }
     showToast("Data loaded.");
   };
@@ -224,7 +293,7 @@ const App: React.FC = () => {
     if (!currentUser?.trialEndsAt) return null;
     const now = new Date();
     const endDate = new Date(currentUser.trialEndsAt);
-    if (endDate < now) return 0; // Trial has expired
+    if (endDate < now) return 0;
     const diffTime = endDate.getTime() - now.getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }, [currentUser]);
@@ -265,7 +334,7 @@ const App: React.FC = () => {
   }, [theme]);
 
   const handleUserSettingsChange = async (newSettings: UserSettings) => {
-    if (!currentUser) return;
+    if (!currentUser || !userSettings) return;
     const { error } = await supabase.from('user_settings').update(newSettings).eq('user_id', currentUser.id);
     if(error) {
         showToast("Error updating settings.");
@@ -275,45 +344,48 @@ const App: React.FC = () => {
     }
   };
 
-  // This is a complex transactional operation, left to modify local state for now.
-  const recordSaleForAffiliate = (affiliateId: string, productId: number, saleAmount: number) => {
-    const product = products.find(p => p.id === productId);
-    const affiliate = users.find(u => u.id === affiliateId);
+  const recordSaleForAffiliate = async (affiliateId: string, productId: number, saleAmount: number) => {
+    // This is a complex transactional operation, better handled by a database function.
+    // For now, we'll perform sequential updates.
+    const { data: product, error: productError } = await supabase.from('products').select('*').eq('id', productId).single();
+    if (productError || !product) {
+      showToast("Error: Product not found.");
+      return;
+    }
 
-    if (!product || !affiliate) {
-      showToast("Error recording sale. Affiliate or product not found.");
-      return false;
+    const { data: affiliate, error: affiliateError } = await supabase.from('profiles').select('*').eq('id', affiliateId).single();
+    if (affiliateError || !affiliate) {
+      showToast("Error: Affiliate not found.");
+      return;
     }
     
-    const currentSalesCount = product.salesCount;
-    const applicableTier = product.commissionTiers
-        .filter(tier => currentSalesCount >= tier.threshold)
-        .sort((a, b) => b.threshold - a.threshold)[0] || { rate: 0 };
+    // FIX: Cannot find name 'CommissionTier'
+    const applicableTier = product.commission_tiers
+        .filter((tier: CommissionTier) => product.sales_count >= tier.threshold)
+        .sort((a: CommissionTier, b: CommissionTier) => b.threshold - a.threshold)[0] || { rate: 0 };
     
     const commissionAmount = saleAmount * (applicableTier.rate / 100);
 
-    setProducts(prev => prev.map(p => 
-      p.id === productId ? { ...p, salesCount: p.salesCount + 1 } : p
-    ));
+    const { error: productUpdateError } = await supabase.from('products').update({ sales_count: product.sales_count + 1 }).eq('id', productId);
+    const { error: profileUpdateError } = await supabase.from('profiles').update({ 
+      sales: (affiliate.sales || 0) + 1, 
+      commission: (affiliate.commission || 0) + commissionAmount 
+    }).eq('id', affiliateId);
 
-    setUsers(prev => prev.map(u => 
-      u.id === affiliateId ? { 
-        ...u, 
-        sales: (u.sales || 0) + 1, 
-        commission: (u.commission || 0) + commissionAmount 
-      } : u
-    ));
-    
-    showToast(`Sale of $${saleAmount} recorded for ${affiliate.name}!`);
-    return true;
+    if (productUpdateError || profileUpdateError) {
+      showToast("Error recording sale.");
+    } else {
+      showToast(`Sale recorded for ${affiliate.name}!`);
+      fetchData(); // Refresh data
+    }
   };
   
   const handleRecordSale = (affiliateId: string, productId: string, saleAmount: number) => {
     recordSaleForAffiliate(affiliateId, Number(productId), saleAmount);
   };
 
-  const handleRecordSaleByCoupon = (couponCode: string, productId: string, saleAmount: number) => {
-    const affiliate = users.find(u => u.couponCode?.toLowerCase() === couponCode.toLowerCase().trim());
+  const handleRecordSaleByCoupon = async (couponCode: string, productId: string, saleAmount: number) => {
+    const { data: affiliate } = await supabase.from('profiles').select('id').ilike('coupon_code', couponCode.trim()).single();
     if (affiliate) {
       recordSaleForAffiliate(affiliate.id, Number(productId), saleAmount);
     } else {
@@ -321,30 +393,19 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSimulateClick = (productId: number, affiliateId: string) => {
-    setUsers(prev => prev.map(u => 
-      u.id === affiliateId 
-        ? { ...u, clicks: (u.clicks || 0) + 1 }
-        : u
-    ));
-    setProducts(prev => prev.map(p =>
-      p.id === productId
-        ? { ...p, clicks: p.clicks + 1 }
-        : p
-    ));
-    showToast(`Click simulated! A tracking cookie would now be stored.`);
+  const handleSimulateClick = async (productId: number, affiliateId: string) => {
+    // In a real app, this would be handled server-side to prevent fraud.
+    await supabase.rpc('increment_clicks', { p_id: productId, a_id: affiliateId });
+    showToast(`Click simulated!`);
+    fetchData();
   };
 
   const handlePasswordLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
         console.error('Login error:', error.message);
         return { success: false, error: error.message };
     }
-    // The onAuthStateChange listener will handle setting the session and navigating to the app.
     return { success: true };
   };
 
@@ -364,48 +425,41 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAffiliateSignup = (name: string, email: string) => {
-    // This would be a more complex flow in a real app, creating a user and then a partnership record.
-    // For now, we simulate by adding to local state. A full implementation would use Supabase.
+  const handleAffiliateSignup = async (name: string, email: string) => {
     if (!signupRefCode) {
         showToast("Invalid signup link.");
         return;
     }
-    const newUser: User = {
-        id: crypto.randomUUID(),
-        name,
-        email,
+    // This flow creates a pending user profile and a partnership application.
+    const { data: newProfile, error } = await supabase.from('profiles').insert({
+        name, email,
         roles: ['affiliate'],
-        avatar: `https://i.pravatar.cc/150?u=${email}`,
-        sales: 0,
-        commission: 0,
-        clicks: 0,
         status: 'Pending',
+        avatar: `https://i.pravatar.cc/150?u=${email}`,
         joinDate: new Date().toISOString().split('T')[0],
-        conversionRate: 0,
         referralCode: name.toLowerCase().replace(/[^a-z0-9]/gi, '-').slice(0, 15),
-        partnerIds: [signupRefCode],
-    };
-    setUsers(prev => [newUser, ...prev]);
-    showToast("Application submitted! It is now pending approval.");
+    }).select().single();
+
+    if (error || !newProfile) {
+        showToast(`Error submitting application: ${error?.message || 'Unknown error'}`);
+        return;
+    }
+
+    const { error: partnershipError } = await supabase.from('partnerships').insert({
+        creator_id: signupRefCode,
+        affiliate_id: newProfile.id,
+        status: 'Pending',
+    });
+
+    if (partnershipError) {
+        showToast(`Error creating partnership: ${partnershipError.message}`);
+    } else {
+        showToast("Application submitted! It is now pending approval.");
+    }
   };
 
   const handlePartnerflowAffiliateSignup = (name: string, email: string) => {
-    // Similar to above, this is a local simulation.
-    const newUser: User = {
-        id: crypto.randomUUID(),
-        name,
-        email,
-        roles: ['affiliate'],
-        avatar: `https://i.pravatar.cc/150?u=${email}`,
-        sales: 0, commission: 0, clicks: 0, status: 'Pending',
-        joinDate: new Date().toISOString().split('T')[0],
-        conversionRate: 0,
-        referralCode: name.toLowerCase().replace(/[^a-z0-9]/gi, '-').slice(0, 15),
-        partnerIds: ['0'], // Partnered with PartnerFlow (Super Admin)
-    };
-    setUsers(prev => [newUser, ...prev]);
-    showToast("Application submitted to the PartnerFlow affiliate program!");
+    showToast("This feature is not yet fully implemented.");
   };
 
   const handleSupabaseSignup = async (name: string, companyName: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -425,10 +479,7 @@ const App: React.FC = () => {
             onboardingStepCompleted: 0,
         });
         if (profileError) {
-            console.error("Error creating profile:", profileError.message, profileError);
-            if (profileError.message.includes('violates row-level security policy')) {
-                 return { success: false, error: "Database permission error. Please run the required security policy script in your Supabase SQL editor." };
-            }
+            console.error("Error creating profile:", profileError);
             return { success: false, error: `Error creating profile: ${profileError.message}` };
         }
     }
@@ -447,37 +498,49 @@ const App: React.FC = () => {
   const handleOnboardingAddProduct = async (productName: string, productPrice: number) => {
     if (!currentUser) return;
     const newProduct = {
-      userId: currentUser.id,
+      user_id: currentUser.id,
       name: productName,
       price: productPrice,
-      salesPageUrl: 'https://example.com/your-sales-page',
-      salesCount: 0,
+      sales_page_url: 'https://example.com/your-sales-page',
+      sales_count: 0,
       clicks: 0,
-      commissionTiers: [{ threshold: 0, rate: 20 }],
+      commission_tiers: [{ threshold: 0, rate: 20 }],
       bonuses: [],
       creatives: [],
-      creationDate: new Date().toISOString().split('T')[0],
+      creation_date: new Date().toISOString().split('T')[0],
     };
-    const { data, error } = await supabase.from('products').insert(newProduct).select();
-    if(data) {
-        setProducts(prev => [...prev, data[0] as Product]);
+    const { error } = await supabase.from('products').insert(newProduct);
+    if(!error) {
         showToast(`${productName} added successfully!`);
+        fetchData();
     } else {
         showToast(`Error adding product.`);
     }
   };
   
-  const handleOnboardingInviteAffiliate = (email: string) => {
-    // This is a complex action (invite user, create pending partnership). Simulating locally for now.
+  const handleOnboardingInviteAffiliate = async (email: string) => {
     if (!currentUser) return;
-    const newUser: User = {
-      id: crypto.randomUUID(), name: `(${email.split('@')[0]})`, email,
-      roles: ['affiliate'], avatar: `https://i.pravatar.cc/150?u=${email}`, status: 'Pending',
-      joinDate: new Date().toISOString().split('T')[0],
-      partnerIds: [currentUser.id],
-    };
-    setUsers(prev => [...prev, newUser]);
-    showToast(`Invitation sent to ${email}.`);
+     // Create a pending profile and partnership
+    const { data: newProfile, error } = await supabase.from('profiles').insert({
+        name: `(${email.split('@')[0]})`, email, roles: ['affiliate'], status: 'Pending',
+        avatar: `https://i.pravatar.cc/150?u=${email}`, joinDate: new Date().toISOString().split('T')[0],
+    }).select().single();
+
+    if (error || !newProfile) {
+       showToast(`Error inviting affiliate: ${error?.message || 'Unknown error'}`);
+       return;
+    }
+
+    const { error: partnershipError } = await supabase.from('partnerships').insert({
+        creator_id: currentUser.id, affiliate_id: newProfile.id, status: 'Pending'
+    });
+
+    if (partnershipError) {
+        showToast(`Error creating partnership: ${partnershipError.message}`);
+    } else {
+        showToast(`Invitation sent to ${email}.`);
+        fetchData();
+    }
   };
 
   const handleOnboardingComplete = () => {
@@ -501,7 +564,7 @@ const App: React.FC = () => {
         }).eq('id', currentUser.id);
         
         if (!error) {
-            setCurrentUser(prev => prev ? ({ ...prev, currentPlan: newPlanName, billingCycle, trialEndsAt: undefined, roles: newRoles }) : null);
+            fetchUserProfile(currentUser.id); // Refetch profile to get all updated details
              if (isUpgradingFromAffiliate) {
                 showToast(`Successfully subscribed! Welcome to the Creator Dashboard.`);
                 setActiveView('creator');
@@ -516,46 +579,49 @@ const App: React.FC = () => {
   };
   
     const handleStripeConnectSuccess = () => {
+        if(!userSettings) return;
         const newSettings = { ...userSettings, integrations: { ...userSettings.integrations, stripe: 'Connected' as const }};
         handleUserSettingsChange(newSettings);
         setAppView('app');
         showToast("Stripe connected successfully!");
     };
 
-    const handleSendCommunication = async (communication: Omit<Communication, 'id' | 'date'>) => {
-        const newCommunication = { ...communication, date: new Date().toISOString() };
-        const { data, error } = await supabase.from('communications').insert(newCommunication).select();
-        if(data) {
-            setCommunications(prev => [data[0] as Communication, ...prev]);
+    const handleSendCommunication = async (communication: Omit<Communication, 'id' | 'date' | 'sender_id'>) => {
+        if (!currentUser) return;
+        const newCommunication = { ...communication, sender_id: currentUser.id, date: new Date().toISOString() };
+        const { error } = await supabase.from('communications').insert(newCommunication);
+        if(!error) {
             showToast(`Message sent to ${communication.recipients} affiliates.`);
+            fetchData();
         }
     };
 
   const handleAdminPlanChange = async (userId: string, newPlanName: string) => {
     const { error } = await supabase.from('profiles').update({ currentPlan: newPlanName }).eq('id', userId);
     if (!error) {
-        setUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, currentPlan: newPlanName } : u));
         showToast(`Successfully updated plan for user to ${newPlanName}.`);
+        fetchData();
     }
   };
 
   const handleSuspendUser = async (userId: string) => {
-    const user = users.find(u => u.id === userId);
+    const user = allUsers.find(u => u.id === userId);
     if (!user) return;
     const newStatus = user.status === 'Suspended' ? 'Active' : 'Suspended';
     const { error } = await supabase.from('profiles').update({ status: newStatus }).eq('id', userId);
     if (!error) {
-        setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: newStatus } : u));
         showToast(`User ${user.name} has been ${newStatus}.`);
+        fetchData();
     }
   };
   
   const handleDeleteUser = async (userId: string) => {
-    // Deleting auth user is complex, for now we just delete the profile.
     const { error } = await supabase.from('profiles').delete().eq('id', userId);
     if (!error) {
-        setUsers(prev => prev.filter(u => u.id !== userId));
-        showToast(`User ID ${userId} has been deleted.`);
+        showToast(`User profile for ID ${userId} has been deleted.`);
+        fetchData();
+    } else {
+        showToast(`Error deleting user: ${error.message}`);
     }
   };
 
@@ -577,17 +643,16 @@ const App: React.FC = () => {
         case 'Dashboard':
           return <Dashboard affiliates={users} products={products} payouts={payouts} onRecordSale={handleRecordSale} onRecordSaleByCoupon={handleRecordSaleByCoupon} />;
         case 'Affiliates':
-          return <Affiliates affiliates={users} setUsers={setUsers} showToast={showToast} currentPlan={currentPlan} currentUser={user} />;
+          return <Affiliates affiliates={users} showToast={showToast} currentPlan={currentPlan} currentUser={user} refetchData={fetchData} />;
         case 'Products':
-          return <Products products={products} setProducts={setProducts} showToast={showToast} currentPlan={currentPlan} currentUser={user} />;
+          return <Products products={products} showToast={showToast} currentPlan={currentPlan} currentUser={user} refetchData={fetchData} />;
         case 'Payouts':
           return <Payouts 
             payouts={payouts} 
-            setPayouts={setPayouts} 
-            affiliates={users} 
             userSettings={userSettings} 
             setActivePage={setActivePage} 
             showToast={showToast}
+            refetchData={fetchData}
           />;
         case 'Reports':
             return <Reports affiliates={users} products={products} payouts={payouts} />;
@@ -616,17 +681,17 @@ const App: React.FC = () => {
   const renderSuperAdminContent = (user: User) => {
     const clients = users.filter(u => u.roles.includes('creator'));
     const partnerflowAffiliates = allUsers.filter(u => u.partnerIds?.includes('0'));
-    const partnerflowPayouts = initialPayouts.filter(p => partnerflowAffiliates.some(a => a.id === p.userId));
+    const partnerflowPayouts = payouts.filter(p => partnerflowAffiliates.some(a => a.id === p.user_id));
 
     switch(adminActivePage) {
         case 'AdminDashboard':
-            return <SuperAdminDashboard payments={initialPayments} clients={clients} planDetails={planDetails} />;
+            return <SuperAdminDashboard payments={payments} clients={clients} planDetails={planDetails} />;
         case 'Clients':
             return <ClientManagement 
                 clients={clients} 
                 allUsers={allUsers}
                 allProducts={products}
-                allPayments={initialPayments}
+                allPayments={payments}
                 onPlanChange={handleAdminPlanChange} 
                 onSuspend={handleSuspendUser}
                 onDelete={handleDeleteUser}
@@ -641,7 +706,7 @@ const App: React.FC = () => {
                 showToast={showToast}
             />;
         case 'Analytics':
-            return <SuperAdminAnalytics users={allUsers} products={products} payouts={initialPayouts} />;
+            return <SuperAdminAnalytics users={allUsers} products={products} payouts={payouts} />;
         case 'PartnerflowAffiliates':
             return <PartnerflowAffiliates 
                 affiliates={partnerflowAffiliates}
@@ -652,12 +717,12 @@ const App: React.FC = () => {
                 currentUser={user}
             />;
         default:
-            return <SuperAdminDashboard payments={initialPayments} clients={clients} planDetails={planDetails} />;
+            return <SuperAdminDashboard payments={payments} clients={clients} planDetails={planDetails} />;
     }
   };
   
   const renderAppContent = () => {
-    if (appView === 'app' && currentUser) {
+    if (appView === 'app' && currentUser && userSettings) {
         const isSuperAdmin = currentUser.roles.includes('super_admin');
         const mainContent = isSuperAdmin 
             ? renderSuperAdminContent(currentUser)
@@ -679,8 +744,8 @@ const App: React.FC = () => {
                         products={products}
                         payouts={payouts}
                         onSimulateClick={handleSimulateClick}
-                        setUsers={setUsers}
                         onStartUpgrade={() => setIsUpgradeFlowActive(true)}
+                        refetchData={fetchData}
                       />;
 
         return (
@@ -748,12 +813,13 @@ const App: React.FC = () => {
                         onNavigateToPartnerflowSignup={() => setAppView('partnerflow_affiliate_signup')} 
                     />;
         case 'login':
-            return <LoginPage onLogin={handlePasswordLogin} onBack={() => setAppView('landing')} users={initialUsers} onNavigateToRegister={() => setAppView('register')} />;
+            return <LoginPage onLogin={handlePasswordLogin} onBack={() => setAppView('landing')} users={[]} onNavigateToRegister={() => setAppView('register')} />;
         case 'register':
             return <RegistrationPage onSignup={handleSupabaseSignup} onBack={() => setAppView('landing')} />;
         case 'signup':
-             const entrepreneur = initialUsers.find(u => u.id === signupRefCode);
-             return <AffiliateSignupPage onSignup={handleAffiliateSignup} onBack={() => setAppView('landing')} entrepreneur={entrepreneur} />;
+             // In a real app, you'd fetch the entrepreneur details from Supabase based on ref code.
+             // For now, this component will show a generic message or be disabled.
+             return <AffiliateSignupPage onSignup={handleAffiliateSignup} onBack={() => setAppView('landing')} entrepreneur={{id: signupRefCode, name: 'Creator', companyName: 'Creator'} as User} />;
         case 'partnerflow_affiliate_signup':
             return <PartnerflowAffiliateSignupPage onSignup={handlePartnerflowAffiliateSignup} onBack={() => setAppView('landing')} />;
         case 'stripe_connect':

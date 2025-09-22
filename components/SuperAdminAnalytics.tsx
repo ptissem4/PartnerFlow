@@ -90,7 +90,8 @@ const SuperAdminAnalytics: React.FC<SuperAdminAnalyticsProps> = ({ users, produc
     const statsInPeriod = useMemo(() => {
         const creators = users.filter(u => u.roles.includes('creator') && u.joinDate && new Date(u.joinDate) >= start && new Date(u.joinDate) <= end).length;
         const affiliates = users.filter(u => u.roles.includes('affiliate') && u.joinDate && new Date(u.joinDate) >= start && new Date(u.joinDate) <= end).length;
-        const newProducts = products.filter(p => new Date(p.creationDate) >= start && new Date(p.creationDate) <= end).length;
+        // FIX: Property 'creationDate' does not exist on type 'Product'. Did you mean 'creation_date'?
+        const newProducts = products.filter(p => new Date(p.creation_date) >= start && new Date(p.creation_date) <= end).length;
         const commissions = payouts
             .flatMap(p => p.sales)
             .filter(s => new Date(s.date) >= start && new Date(s.date) <= end)
@@ -130,7 +131,8 @@ const SuperAdminAnalytics: React.FC<SuperAdminAnalyticsProps> = ({ users, produc
         const monthlyData: { [key: string]: number } = {};
 
         products.forEach(product => {
-            const month = product.creationDate.substring(0, 7);
+            // FIX: Property 'creationDate' does not exist on type 'Product'. Did you mean 'creation_date'?
+            const month = product.creation_date.substring(0, 7);
             if (!monthlyData[month]) monthlyData[month] = 0;
             monthlyData[month]++;
         });

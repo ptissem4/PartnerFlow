@@ -34,7 +34,8 @@ const PayoutDetailModal: React.FC<PayoutDetailModalProps> = ({ payout, onClose }
           {/* Invoice Header */}
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Invoice to {payout.affiliateName}</h3>
+              {/* FIX: Property 'affiliateName' does not exist on type 'Payout'. Did you mean 'affiliate_name'? */}
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Invoice to {payout.affiliate_name}</h3>
               <p className="text-gray-500 dark:text-gray-400">For commission period: {payout.period}</p>
             </div>
             <div className="text-right">

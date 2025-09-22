@@ -1,14 +1,16 @@
+
 import React, { useState, useMemo } from 'react';
 import { User, Product, CommissionTier, PerformanceBonus, Creative, Payout, Sale } from '../data/mockData';
+import { supabase } from '../lib/supabaseClient';
 
 interface AffiliatePortalProps {
   currentUser: User;
-  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   users: User[];
   products: Product[];
   payouts: Payout[];
   onSimulateClick: (productId: number, affiliateId: string) => void;
   onStartUpgrade: () => void;
+  refetchData: () => void;
 }
 
 const formatCommissionTiers = (tiers: CommissionTier[]) => {
@@ -57,7 +59,7 @@ const GetCodeModal: React.FC<{ code: string, onClose: () => void }> = ({ code, o
 };
 
 
-const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, setUsers, users, products, payouts, onSimulateClick, onStartUpgrade }) => {
+const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, users, products, payouts, onSimulateClick, onStartUpgrade, refetchData }) => {
   const [selectedPartner, setSelectedPartner] = useState<User | null>(null);
   const [copiedLink, setCopiedLink] = useState<number | null>(null);
   const [isEditingCode, setIsEditingCode] = useState(false);
@@ -73,7 +75,8 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, setUsers
     let pending = 0;
     const sales: Sale[] = [];
 
-    payouts.filter(p => p.userId === currentUser.id).forEach(p => {
+    // FIX: Property 'userId' does not exist on type 'Payout'. Did you mean 'user_id'?
+    payouts.filter(p => p.user_id === currentUser.id).forEach(p => {
         p.sales.forEach(s => {
             sales.push(s);
             if (s.status === 'Cleared') {
@@ -92,7 +95,8 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, setUsers
 
   const promotableProducts = useMemo(() => {
     if (!selectedPartner) return [];
-    return products.filter(p => p.userId === selectedPartner.id);
+    // FIX: Property 'userId' does not exist on type 'Product'. Did you mean 'user_id'?
+    return products.filter(p => p.user_id === selectedPartner.id);
   }, [products, selectedPartner]);
 
   const handleCopyLink = (link: string, productId: number) => {
@@ -102,12 +106,19 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, setUsers
     });
   };
   
-  const handleSaveCode = () => {
+  const handleSaveCode = async () => {
     if (newReferralCode && !/\s/.test(newReferralCode)) {
-      setUsers(prev => 
-        prev.map(u => u.id === currentUser.id ? { ...u, referralCode: newReferralCode } : u)
-      );
-      setIsEditingCode(false);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ referral_code: newReferralCode })
+        .eq('id', currentUser.id);
+
+      if (!error) {
+        setIsEditingCode(false);
+        refetchData();
+      } else {
+        alert("Error updating referral code.");
+      }
     } else {
         alert("Referral code cannot be empty or contain spaces.");
     }
@@ -115,7 +126,8 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, setUsers
 
   const generateEmbedCode = (creative: Creative, product: Product) => {
     if (!product || !currentUser.referralCode) return '';
-    const affiliateLink = `${product.salesPageUrl}?ref=${currentUser.referralCode}`;
+    // FIX: Property 'salesPageUrl' does not exist on type 'Product'. Did you mean 'sales_page_url'?
+    const affiliateLink = `${product.sales_page_url}?ref=${currentUser.referralCode}`;
     return `<a href="${affiliateLink}" target="_blank" rel="noopener noreferrer">
   <img src="${creative.imageUrl}" alt="${creative.description}" />
 </a>`;
@@ -198,7 +210,8 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, setUsers
         <p className="text-gray-500 dark:text-gray-400 mb-4">Share these links to earn commissions on products you're approved for.</p>
         <div className="space-y-4">
           {promotableProducts.length > 0 ? promotableProducts.map(product => {
-            const affiliateLink = `${product.salesPageUrl}?ref=${currentUser.referralCode}`;
+            // FIX: Property 'salesPageUrl' does not exist on type 'Product'. Did you mean 'sales_page_url'?
+            const affiliateLink = `${product.sales_page_url}?ref=${currentUser.referralCode}`;
             const bonusText = formatBonuses(product.bonuses);
             return (
               <div key={product.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
@@ -207,7 +220,8 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, setUsers
                     <p className="font-semibold text-gray-800 dark:text-white">{product.name}</p>
                     <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-x-3 flex-wrap">
                       <span>${product.price}</span>
-                      <span className="font-medium text-cyan-600 dark:text-cyan-400">Commission: {formatCommissionTiers(product.commissionTiers)}</span>
+                      {/* FIX: Property 'commissionTiers' does not exist on type 'Product'. Did you mean 'commission_tiers'? */}
+                      <span className="font-medium text-cyan-600 dark:text-cyan-400">Commission: {formatCommissionTiers(product.commission_tiers)}</span>
                       {bonusText && <span className="font-medium text-teal-500">{bonusText}</span>}
                     </div>
                   </div>
@@ -218,7 +232,8 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, setUsers
                           value={affiliateLink}
                           className="w-full sm:w-auto flex-grow px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 focus:outline-none"
                       />
-                      <a href={product.salesPageUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 text-nowrap">
+                      {/* FIX: Property 'salesPageUrl' does not exist on type 'Product'. Did you mean 'sales_page_url'? */}
+                      <a href={product.sales_page_url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 text-nowrap">
                         Preview Page
                       </a>
                       <button

@@ -5,7 +5,8 @@ import AiAssistantModal from './AiAssistantModal';
 interface CommunicateProps {
     affiliates: User[];
     communications: Communication[];
-    onSend: (communication: Omit<Communication, 'id' | 'date'>) => void;
+    // FIX: Update prop type to match what parent component expects.
+    onSend: (communication: Omit<Communication, 'id' | 'date' | 'sender_id'>) => void;
 }
 
 const Communicate: React.FC<CommunicateProps> = ({ affiliates, communications, onSend }) => {

@@ -14,7 +14,8 @@ const Reports: React.FC<ReportsProps> = ({ affiliates, products, payouts }) => {
 
   const filteredSales = useMemo(() => {
     if (timeFilter === 'all') {
-      return payouts.flatMap(p => p.sales.map(s => ({ ...s, affiliateId: p.userId })));
+      // FIX: Property 'userId' does not exist on type 'Payout'. Did you mean 'user_id'?
+      return payouts.flatMap(p => p.sales.map(s => ({ ...s, affiliateId: p.user_id })));
     }
     const now = new Date();
     const days = timeFilter === '30d' ? 30 : 90;
@@ -23,12 +24,13 @@ const Reports: React.FC<ReportsProps> = ({ affiliates, products, payouts }) => {
     return payouts.flatMap(p => 
       p.sales
         .filter(s => new Date(s.date) >= cutoffDate)
-        .map(s => ({ ...s, affiliateId: p.userId }))
+        // FIX: Property 'userId' does not exist on type 'Payout'. Did you mean 'user_id'?
+        .map(s => ({ ...s, affiliateId: p.user_id }))
     );
   }, [payouts, timeFilter]);
 
   const affiliateReport = useMemo(() => {
-    const stats: { [key: number]: { sales: number; commission: number } } = {};
+    const stats: { [key: string]: { sales: number; commission: number } } = {};
 
     filteredSales.forEach(sale => {
       if (!stats[sale.affiliateId]) {

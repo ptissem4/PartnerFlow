@@ -5,11 +5,9 @@ interface AddAffiliateModalProps {
   onClose: () => void;
   onSave: (user: User) => void;
   affiliateToEdit: User | null;
-  allUsers: User[];
-  currentUser: User;
 }
 
-const AddAffiliateModal: React.FC<AddAffiliateModalProps> = ({ onClose, onSave, affiliateToEdit, allUsers, currentUser }) => {
+const AddAffiliateModal: React.FC<AddAffiliateModalProps> = ({ onClose, onSave, affiliateToEdit }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [couponCode, setCouponCode] = useState('');
@@ -40,26 +38,16 @@ const AddAffiliateModal: React.FC<AddAffiliateModalProps> = ({ onClose, onSave, 
     
     setError('');
 
-    const baseData = affiliateToEdit || {
-        id: crypto.randomUUID(),
-        roles: ['affiliate'],
-        avatar: `https://i.pravatar.cc/150?u=${Math.floor(Math.random() * 1000)}`,
-        sales: 0,
-        commission: 0,
-        clicks: 0,
-        status: 'Pending',
-        joinDate: new Date().toISOString().split('T')[0],
-        conversionRate: 0,
-        referralCode: name.toLowerCase().replace(/\s+/g, '-').slice(0, 15),
-        partnerIds: [currentUser.id],
-    };
-
     const userData: User = {
-        ...baseData,
+        ...affiliateToEdit, // a null or existing object
+        id: affiliateToEdit ? affiliateToEdit.id : crypto.randomUUID(), // temp ID for new users, real one from DB
+        roles: ['affiliate'],
+        status: affiliateToEdit?.status || 'Active',
         name,
         email,
         couponCode: couponCode.trim() || undefined,
-    };
+        // The backend will fill in other details like avatar, joinDate etc. for new users
+    } as User;
     
     onSave(userData);
     onClose();
