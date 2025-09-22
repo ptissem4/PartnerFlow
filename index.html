@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- SEO Meta Tags -->
+    <title>PartnerFlow | Affiliate Management Software for Creators & Coaches</title>
+    <meta name="description" content="Stop wasting time on spreadsheets. PartnerFlow is the all-in-one affiliate management software designed for creators, coaches, and course sellers to automate tracking, payouts, and grow their partnership programs." />
+    <meta name="keywords" content="affiliate management software, partnership program tool, creator affiliate platform, automate affiliate payouts, affiliate tracking for kajabi, influencer partnerships" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://partnerflow.io/" />
+    <meta property="og:title" content="PartnerFlow | Affiliate Management Software for Creators & Coaches" />
+    <meta property="og:description" content="Stop wasting time on spreadsheets. PartnerFlow is the all-in-one affiliate management software designed for creators, coaches, and course sellers to automate tracking, payouts, and grow their partnership programs." />
+    <meta property="og:image" content="https://i.imgur.com/4a0x2fA.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://partnerflow.io/" />
+    <meta property="twitter:title" content="PartnerFlow | Affiliate Management Software for Creators & Coaches" />
+    <meta property="twitter:description" content="Stop wasting time on spreadsheets. PartnerFlow is the all-in-one affiliate management software designed for creators, coaches, and course sellers to automate tracking, payouts, and grow their partnership programs." />
+    <meta property="twitter:image" content="https://i.imgur.com/4a0x2fA.png" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class', // Enable class-based dark mode
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+          },
+        },
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
+    "recharts": "https://aistudiocdn.com/recharts@^2.12.7",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.45.1"
+  }
+}
+</script>
+<style>
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    .no-print, .no-print * {
+        visibility: hidden !important;
+        display: none !important;
+    }
+    .printable-area, .printable-area * {
+      visibility: visible;
+    }
+    .printable-area {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: auto;
+      max-height: none !important; /* Override modal constraints */
+      overflow: visible !important; /* Override modal constraints */
+    }
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+</style>
+</head>
+  <body class="bg-gray-100 dark:bg-gray-900">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
