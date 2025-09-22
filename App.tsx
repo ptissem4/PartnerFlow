@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
@@ -166,17 +167,24 @@ const App: React.FC = () => {
           .insert({
             id: session.user.id,
             email: session.user.email,
-            name: session.user.email, // default name to email
-            avatar: `https://i.pravatar.cc/150?u=${session.user.email}`, // Add default avatar
-            // roles: ['affiliate'], // REMOVED: This is a privileged field and likely violates RLS when set from the client. The database should handle assigning a default role.
+            name: session.user.user_metadata.name || session.user.email, // Use metadata from signup
+            companyName: session.user.user_metadata.company_name,
+            avatar: session.user.user_metadata.avatar || `https://i.pravatar.cc/150?u=${session.user.email}`,
             status: 'Active',
             joinDate: new Date().toISOString().split('T')[0],
           }).select().single();
         
         if (creationError) {
-          console.error("Failed to auto-create profile:", creationError.message);
-          handleSupabaseLogout();
-          return;
+          // This handles a race condition where a DB trigger creates the profile
+          // right as the client-side code attempts to. Instead of logging out, retry.
+          if (creationError.code === '23505') { // unique_violation
+            console.warn("Profile auto-creation failed due to a race condition. Retrying profile fetch.");
+            setTimeout(() => fetchUserProfile(session.user.id), 500);
+          } else {
+            console.error("Failed to auto-create profile:", creationError.message);
+            handleSupabaseLogout();
+          }
+          return; // Stop execution for this run
         }
         userToSet = newProfile as User;
       }
@@ -185,7 +193,8 @@ const App: React.FC = () => {
           userToSet.roles = userToSet.roles || [];
 
           // Special logic to automatically grant super_admin role
-          if (userToSet.email === 'admin@partnerflow.io' && !userToSet.roles.includes('super_admin')) {
+          const adminEmails = ['admin@partnerflow.io', 'ptissem4@hotmail.com'];
+          if (adminEmails.includes(userToSet.email) && !userToSet.roles.includes('super_admin')) {
               showToast("Attempting to grant Super Admin access...");
               const updatedRoles = [...userToSet.roles, 'super_admin'];
               
