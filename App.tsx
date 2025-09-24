@@ -79,7 +79,7 @@ const App: React.FC = () => {
   const [signupRefCode, setSignupRefCode] = useState<string | null>(null);
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [isFinalizingAccount, setIsFinalizingAccount] = useState(false);
-  const [isDataLoading, setIsDataLoading] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true); // Start true on initial load
 
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [adminActivePage, setAdminActivePage] = useState<AdminPage>('AdminDashboard');
@@ -111,57 +111,49 @@ const App: React.FC = () => {
   }
 
   const loadUserAndData = async (session: Session) => {
-    // A single, robust guard to prevent concurrent executions.
-    if (isDataLoading) return;
+    if (isDataLoading && currentUser) return; // Prevent re-entry if already loading for a user
     setIsDataLoading(true);
-    setAuthStatus('INITIAL_LOADING'); // Indicate loading has started for the user.
 
     try {
-      let profile: User | null = null;
-      let fetchError: any = null;
-      const maxRetries = 30; // 30 seconds
-      const retryDelay = 1000; // 1 second
+        let profile: User | null = null;
+        let fetchError: any = null;
+        const maxRetries = 30; // 30 seconds
+        const retryDelay = 1000; // 1 second
 
-      const { data: initialCheck } = await supabase.from('profiles').select('id').eq('id', session.user.id).single();
-      if (!initialCheck) {
-          setIsFinalizingAccount(true);
-      }
+        const { data: initialCheck } = await supabase.from('profiles').select('id').eq('id', session.user.id).single();
+        if (!initialCheck) {
+            setIsFinalizingAccount(true);
+        }
 
-      for (let i = 0; i < maxRetries; i++) {
-          const { data, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
+        // Resilient retry loop: keeps trying for 30s unless it gets data. Ignores transient errors.
+        for (let i = 0; i < maxRetries; i++) {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
 
-          if (data) {
-              profile = data as User;
-              fetchError = null;
-              break;
-          }
+            if (data) {
+                profile = data as User;
+                fetchError = null; // Clear previous transient errors
+                break; // Success!
+            }
+            
+            fetchError = error;
+            console.warn(`Profile fetch attempt ${i + 1} failed. Retrying...`, error?.message);
 
-          if (error && error.code !== 'PGRST116') {
-              fetchError = error;
-              break;
-          }
-          
-          fetchError = error;
-          if (i < maxRetries - 1) {
-              await new Promise(resolve => setTimeout(resolve, retryDelay));
-          }
-      }
+            if (i < maxRetries - 1) {
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+            }
+        }
       
       setIsFinalizingAccount(false);
 
       if (fetchError || !profile) {
-          console.error("Fatal error fetching profile:", fetchError);
-          showToast(fetchError?.code === 'PGRST116'
-              ? "Your account is still being set up. Please try logging in again shortly."
-              : "An error occurred fetching your profile. Please try again."
-          );
-          await handleSupabaseLogout(); // This will trigger the useEffect to reset state.
-          // Set authStatus explicitly here to unblock the UI immediately.
-          setAuthStatus('LOGGED_OUT');
+          console.error("Fatal error fetching profile after retries:", fetchError);
+          showToast("Could not load your profile data. Please refresh the page or contact support.");
+          // By not changing state here, we keep the user on the loading screen instead of logging them out.
+          // This prevents the user from being kicked out due to a temporary issue.
           return;
       }
   
@@ -203,28 +195,41 @@ const App: React.FC = () => {
         await handleSupabaseLogout();
         setAuthStatus('LOGGED_OUT');
     } finally {
-        setIsDataLoading(false);
-        setIsFinalizingAccount(false);
+        // Only set loading to false if we are not in a finalization state
+        if (!isFinalizingAccount) {
+            setIsDataLoading(false);
+        }
     }
   };
   
-  // Effect #1: Solely responsible for listening to auth changes and setting the session.
+  // Centralized effect for auth state changes
   useEffect(() => {
+    // Check for session on initial load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(session);
+        if (!session) {
+            setIsDataLoading(false);
+            setAuthStatus('LOGGED_OUT');
+        }
+    });
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         setSession(session);
+        if (!session) {
+            setIsDataLoading(false);
+            setAuthStatus('LOGGED_OUT');
+        }
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  // Effect #2: Solely responsible for reacting to session changes to either load data or reset state.
-  // This prevents race conditions from multiple auth events firing.
+  // Effect to react to session changes
   useEffect(() => {
-    // If a session exists and we don't have a user loaded, it's a fresh login. Load data.
     if (session && !currentUser) {
         loadUserAndData(session);
     } 
-    // If the session is gone, it's a logout. Reset all application state.
     else if (!session) {
+        // Reset state on logout
         setCurrentUser(null);
         setUserSettings(null);
         setUsers([]);
@@ -236,8 +241,7 @@ const App: React.FC = () => {
         setActivePage('Dashboard');
         setAdminActivePage('AdminDashboard');
         setActiveView('creator');
-        // Only set appView to landing on logout if it's not a special route.
-        if (appView !== 'admin_login' && appView !== 'signup' && appView !== 'partnerflow_affiliate_signup') {
+        if (!['admin_login', 'signup', 'partnerflow_affiliate_signup'].includes(appView)) {
             setAppView('landing');
         }
         setAuthStatus('LOGGED_OUT');
@@ -452,14 +456,16 @@ const App: React.FC = () => {
   };
 
   const handlePasswordLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    setIsDataLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
         console.error('Login failed:', JSON.stringify(error, null, 2));
         const userFriendlyError = 'Invalid login credentials. Please check your email and password.';
         showToast(userFriendlyError);
+        setIsDataLoading(false);
         return { success: false, error: userFriendlyError };
     }
-    // Success is now handled by the useEffect watching the session.
+    // Success will be handled by the useEffect watching the session.
     return { success: true };
   };
   
@@ -563,6 +569,7 @@ const App: React.FC = () => {
   };
 
   const handleSupabaseSignup = async (name: string, companyName: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    setIsDataLoading(true);
     const { error } = await supabase.auth.signUp({ 
         email, 
         password,
@@ -577,9 +584,11 @@ const App: React.FC = () => {
     
     if (error) {
         console.error("Signup error:", error);
+        setIsDataLoading(false);
         return { success: false, error: error.message };
     }
     
+    // Success will be handled by the useEffect watching the session.
     return { success: true };
   };
 
@@ -825,7 +834,7 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
-    if (authStatus === 'INITIAL_LOADING') {
+    if (isDataLoading) {
       return <LoadingSpinner fullPage />;
     }
 
@@ -866,7 +875,13 @@ const App: React.FC = () => {
     }
     
     if (authStatus !== 'LOGGED_IN' || !session || !currentUser) {
-        return <LoadingSpinner fullPage />;
+        // If we have a session but no user, it means we are in the loading state handled by isDataLoading
+        // If we have no session, the appView logic above should have already rendered a public page.
+        // This is a fallback to prevent rendering a broken app state.
+        if (session) {
+            return <LoadingSpinner fullPage />;
+        }
+        return <LandingPage currentUser={null} onNavigateToLogin={() => setAppView('login')} onNavigateToRegister={() => setAppView('register')} onNavigateToPartnerflowSignup={() => setAppView('partnerflow_affiliate_signup')} />;
     }
     
     // Main App View
