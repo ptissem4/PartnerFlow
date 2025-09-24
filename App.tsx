@@ -1,4 +1,7 @@
 
+
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
@@ -47,7 +50,7 @@ import {
 export type Page = 'Dashboard' | 'Affiliates' | 'Products' | 'Payouts' | 'Settings' | 'Reports' | 'Billing' | 'Communicate';
 export type AdminPage = 'AdminDashboard' | 'Clients' | 'PlatformSettings' | 'Analytics' | 'PartnerflowAffiliates';
 export type Theme = 'light' | 'dark';
-export type AppView = 'landing' | 'login' | 'signup' | 'app' | 'stripe_connect' | 'register' | 'partnerflow_affiliate_signup';
+export type AppView = 'landing' | 'login' | 'signup' | 'app' | 'stripe_connect' | 'register' | 'partnerflow_affiliate_signup' | 'admin_login';
 export type ActiveView = 'creator' | 'affiliate';
 type AuthStatus = 'INITIAL_LOADING' | 'LOGGED_IN' | 'LOGGED_OUT';
 
@@ -77,6 +80,7 @@ const App: React.FC = () => {
   const [appView, setAppView] = useState<AppView>('landing');
   const [signupRefCode, setSignupRefCode] = useState<string | null>(null);
   const [isOnboarding, setIsOnboarding] = useState(false);
+  const [isFinalizingAccount, setIsFinalizingAccount] = useState(false);
 
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [adminActivePage, setAdminActivePage] = useState<AdminPage>('AdminDashboard');
@@ -108,83 +112,62 @@ const App: React.FC = () => {
   }
 
   const loadUserAndData = async (session: Session) => {
-      // Step 1: Fetch profile, with RPC fallback for creation
-      let { data: profile, error: fetchError } = await supabase
-          .from('profiles').select('*').eq('id', session.user.id).single();
-  
-      if (fetchError && fetchError.code === 'PGRST116') { // Profile not found
-          console.warn("Profile not found for user. Attempting to create it.");
+      let profile: User | null = null;
+      let fetchError: any = null;
+      const maxRetries = 30; // Increased to 30 seconds
+      const retryDelay = 1000; // ms
 
-          const { user } = session;
-          const { name, company_name } = user.user_metadata;
-          // Check for essential metadata. If missing, this might be a user created without the signup flow.
-          if (!name || !company_name) {
-              console.log("Essential user metadata missing. Updating before creating profile.");
-              const { error: updateError } = await supabase.auth.updateUser({
-                  data: {
-                      name: name || user.email?.split('@')[0] || 'New User',
-                      company_name: company_name || `${user.email?.split('@')[0]}'s Company`,
-                      avatar: user.user_metadata.avatar || `https://i.pravatar.cc/150?u=${user.email}`
-                  }
-              });
-
-              if (updateError) {
-                  console.error("Fatal: Could not update user metadata before profile creation.", JSON.stringify(updateError, null, 2));
-                  showToast(`Error preparing your account: ${updateError.message}. Please contact support.`);
-                  await handleSupabaseLogout();
-                  return;
-              }
-              // The session should be updated automatically by the client library.
-              console.log("User metadata updated. Now calling RPC to create profile.");
-          }
-
-          const { data: rpcData, error: rpcError } = await supabase.rpc('create_profile_for_new_user');
-
-          if (rpcError) {
-              console.error("Fatal: Could not create user profile via RPC.", JSON.stringify(rpcError, null, 2));
-              showToast(`Error setting up your account: ${rpcError.message}. Logging out.`);
-              await handleSupabaseLogout();
-              return;
-          }
-
-          // The RPC function is expected to return the newly created profile row.
-          // Supabase RPC can return a single object or an array. Be defensive.
-          const newProfile = Array.isArray(rpcData) ? rpcData[0] : rpcData;
-          
-          if (!newProfile) {
-              console.warn("RPC did not return profile data. Refetching profile manually.");
-              const { data: refetchedProfile, error: refetchError } = await supabase
-                  .from('profiles').select('*').eq('id', session.user.id).single();
-
-              if (refetchError || !refetchedProfile) {
-                  console.error("Fatal: Profile not found even after RPC creation attempt.", JSON.stringify(refetchError, null, 2));
-                  showToast("Could not finalize your account setup. Please contact support.");
-                  await handleSupabaseLogout();
-                  return;
-              }
-              profile = refetchedProfile as User;
-          } else {
-              profile = newProfile as User;
-          }
-          
-          showToast("Welcome! Your profile has been set up.");
-      } else if (fetchError) {
-          console.error("Fatal: Could not fetch user profile.", fetchError);
-          showToast("Error retrieving your profile. Logging out.");
-          await handleSupabaseLogout();
-          return;
+      const { data: initialCheck } = await supabase.from('profiles').select('id').eq('id', session.user.id).single();
+      if (!initialCheck) {
+          setIsFinalizingAccount(true);
       }
-  
-      if (!profile) {
-          console.error("Fatal: Profile is null after fetch/create operations.");
-          await handleSupabaseLogout();
+
+      for (let i = 0; i < maxRetries; i++) {
+          const { data, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+
+          if (data) {
+              profile = data as User;
+              fetchError = null;
+              break; // Profile found, exit loop
+          }
+
+          if (error && error.code !== 'PGRST116') {
+              fetchError = error;
+              break;
+          }
+          
+          fetchError = error;
+          if (i < maxRetries - 1) {
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+          }
+      }
+      
+      setIsFinalizingAccount(false);
+
+      if (fetchError || !profile) {
+          if (fetchError?.code === 'PGRST116') {
+               console.warn(
+                  "Fatal: User profile not found after login, even after retries.",
+                  "This could be due to a slow database trigger for profile creation.",
+                  "Forcing a logout. Please try logging in again in a moment."
+              );
+              showToast("Your account is still being finalized. Please refresh the page in a moment.");
+          } else {
+              console.error("Fatal: An unexpected error occurred while fetching the user profile.", "Fetch Error:", JSON.stringify(fetchError, null, 2));
+              showToast("An error occurred while retrieving your profile. Logging out.");
+              await handleSupabaseLogout();
+          }
           return;
       }
   
       // Grant admin role if email matches
       let userToSet = profile as User;
       userToSet.roles = userToSet.roles || [];
-      const adminEmails = ['admin@partnerflow.io', 'ptissem4@hotmail.com'];
+      const adminEmails = ['admin@partnerflow.app', 'ptissem4@hotmail.com'];
       if (adminEmails.includes(userToSet.email) && !userToSet.roles.includes('super_admin')) {
           const { data: updatedProfile, error: updateError } = await supabase
               .from('profiles').update({ roles: [...userToSet.roles, 'super_admin'] }).eq('id', userToSet.id).select().single();
@@ -198,10 +181,9 @@ const App: React.FC = () => {
       
       setCurrentUser(userToSet);
   
-      // Step 2: Fetch all other required data
+      // Fetch all other required data
       await fetchData(userToSet);
       
-      // Step 3: Unlock the UI
       setAppView('app');
       setAuthStatus('LOGGED_IN');
       if (userToSet.roles.includes('creator') && (userToSet.onboardingStepCompleted || 0) < 5) {
@@ -260,6 +242,9 @@ const App: React.FC = () => {
         
         const { data: allPayoutsData } = await supabase.from('payouts').select('*');
         setPayouts(allPayoutsData as Payout[] || []);
+
+        const { data: allPaymentsData } = await supabase.from('payments').select('*');
+        setPayments(allPaymentsData as Payment[] || []);
     } 
     else if (currentUser.roles.includes('creator')) {
         const { data: partnerships } = await supabase
@@ -329,6 +314,12 @@ const App: React.FC = () => {
   const isTrialExpired = trialDaysRemaining === 0;
 
   useEffect(() => {
+    // Handle special routing first
+    if (window.location.pathname === '/admin-portal') {
+      setAppView('admin_login');
+      return;
+    }
+
     const params = new URLSearchParams(window.location.search);
     const refCode = params.get('ref');
     if (refCode) {
@@ -430,10 +421,12 @@ const App: React.FC = () => {
   const handlePasswordLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-        console.error('Login error:', error.message);
-        return { success: false, error: error.message };
+        console.error('Login failed:', JSON.stringify(error, null, 2));
+        const userFriendlyError = 'Invalid login credentials. Please check your email and password.';
+        showToast(userFriendlyError);
+        return { success: false, error: userFriendlyError };
     }
-    // Success is handled by onAuthStateChange
+    showToast('Login successful!');
     return { success: true };
   };
   
@@ -530,24 +523,26 @@ const App: React.FC = () => {
       creation_date: new Date().toISOString().split('T')[0],
     };
     const { error } = await supabase.from('products').insert(newProduct);
-    if(!error) {
+    if (error) {
+        console.error("Onboarding Error: Failed to add product.", JSON.stringify(error, null, 2));
+        showToast(`Error: Could not add product. Please try again.`);
+    } else {
         showToast(`${productName} added successfully!`);
         fetchData(currentUser);
-    } else {
-        showToast(`Error adding product.`);
     }
   };
   
   const handleOnboardingInviteAffiliate = async (email: string) => {
     if (!currentUser) return;
      // Create a pending profile and partnership
-    const { data: newProfile, error } = await supabase.from('profiles').insert({
+    const { data: newProfile, error: profileError } = await supabase.from('profiles').insert({
         name: `(${email.split('@')[0]})`, email, roles: ['affiliate'], status: 'Pending',
         avatar: `https://i.pravatar.cc/150?u=${email}`, joinDate: new Date().toISOString().split('T')[0],
     }).select().single();
 
-    if (error || !newProfile) {
-       showToast(`Error inviting affiliate: ${error?.message || 'Unknown error'}`);
+    if (profileError || !newProfile) {
+       console.error("Onboarding Error: Failed to create profile for invite.", JSON.stringify(profileError, null, 2));
+       showToast(`Error creating invite: ${profileError?.message || 'Please check the email and try again.'}`);
        return;
     }
 
@@ -556,6 +551,7 @@ const App: React.FC = () => {
     });
 
     if (partnershipError) {
+        console.error("Onboarding Error: Failed to create partnership for invite.", JSON.stringify(partnershipError, null, 2));
         showToast(`Error creating partnership: ${partnershipError.message}`);
     } else {
         showToast(`Invitation sent to ${email}.`);
@@ -569,6 +565,11 @@ const App: React.FC = () => {
     }
     setIsOnboarding(false);
     showToast("Onboarding complete! Let's get started.");
+  };
+
+  const handleSkipOnboarding = () => {
+    setIsOnboarding(false);
+    showToast("Setup paused. You can continue anytime from the header.");
   };
 
   const handlePlanChange = async (newPlanName: string, billingCycle: 'monthly' | 'annual') => {
@@ -663,7 +664,7 @@ const App: React.FC = () => {
         case 'Dashboard':
           return <Dashboard affiliates={users} products={products} payouts={payouts} onRecordSale={handleRecordSale} onRecordSaleByCoupon={handleRecordSaleByCoupon} />;
         case 'Affiliates':
-          return <Affiliates affiliates={users} showToast={showToast} currentPlan={currentPlan} currentUser={user} refetchData={() => fetchData(user)} />;
+          return <Affiliates affiliates={users} payouts={payouts} showToast={showToast} currentPlan={currentPlan} currentUser={user} refetchData={() => fetchData(user)} />;
         case 'Products':
           return <Products products={products} showToast={showToast} currentPlan={currentPlan} currentUser={user} refetchData={() => fetchData(user)} />;
         case 'Payouts':
@@ -700,8 +701,7 @@ const App: React.FC = () => {
 
   const renderSuperAdminContent = (user: User) => {
     const clients = users.filter(u => u.roles.includes('creator'));
-    const partnerflowAffiliates = allUsers.filter(u => u.partnerIds?.includes('0'));
-    const partnerflowPayouts = payouts.filter(p => partnerflowAffiliates.some(a => a.id === p.user_id));
+    const partnerflowAffiliates = allUsers.filter(u => u.roles.includes('affiliate'));
 
     switch(adminActivePage) {
         case 'AdminDashboard':
@@ -713,13 +713,13 @@ const App: React.FC = () => {
                 allProducts={products}
                 allPayments={payments}
                 onPlanChange={handleAdminPlanChange} 
-                onSuspend={handleSuspendUser}
+                onSuspend={handleSuspendUser} 
                 onDelete={handleDeleteUser}
                 onImpersonate={handleImpersonateUser}
             />;
         case 'PlatformSettings':
             return <PlatformSettings 
-                platformSettings={platformSettings}
+                platformSettings={platformSettings} 
                 setPlatformSettings={setPlatformSettings}
                 planDetails={planDetails}
                 setPlanDetails={setPlanDetails}
@@ -729,9 +729,9 @@ const App: React.FC = () => {
             return <SuperAdminAnalytics users={allUsers} products={products} payouts={payouts} />;
         case 'PartnerflowAffiliates':
             return <PartnerflowAffiliates 
-                affiliates={partnerflowAffiliates}
-                payouts={partnerflowPayouts}
-                setUsers={setAllUsers}
+                affiliates={partnerflowAffiliates} 
+                payouts={payouts}
+                setUsers={setUsers}
                 setPayouts={setPayouts}
                 showToast={showToast}
                 currentUser={user}
@@ -740,126 +740,132 @@ const App: React.FC = () => {
             return <SuperAdminDashboard payments={payments} clients={clients} planDetails={planDetails} />;
     }
   };
-  
-  const renderAppContent = () => {
+
+  const renderContent = () => {
     if (authStatus === 'INITIAL_LOADING') {
-        return <LoadingSpinner fullPage />;
+      return <LoadingSpinner fullPage />;
     }
-    
-    if (authStatus === 'LOGGED_IN' && currentUser && userSettings) {
-        const isSuperAdmin = currentUser.roles.includes('super_admin');
-        const mainContent = isSuperAdmin 
-            ? renderSuperAdminContent(currentUser)
-            : activeView === 'creator' && currentUser.roles.includes('creator') 
-                ? renderCreatorContent(currentUser) 
-                : isUpgradeFlowActive 
-                    ? <Billing
-                        currentUser={currentUser}
-                        affiliates={[]}
-                        products={[]}
-                        onPlanChange={handlePlanChange}
-                        isTrialExpired={false}
-                        isUpgradeFlow={true}
-                        onCancelUpgrade={() => setIsUpgradeFlowActive(false)}
-                      />
-                    : <AffiliatePortal
-                        currentUser={currentUser}
-                        users={users}
-                        products={products}
-                        payouts={payouts}
-                        onSimulateClick={handleSimulateClick}
-                        onStartUpgrade={() => setIsUpgradeFlowActive(true)}
-                        refetchData={() => fetchData(currentUser)}
-                      />;
 
+    if (isFinalizingAccount) {
         return (
-            <>
-                <div className="flex h-full bg-gray-100 dark:bg-gray-900">
-                    { (activeView === 'creator' || isSuperAdmin) && (
-                      <>
-                        <Sidebar 
-                            activePage={isSuperAdmin ? adminActivePage : activePage} 
-                            setActivePage={isSuperAdmin ? setAdminActivePage : setActivePage} 
-                            isOpen={isSidebarOpen} 
-                            setIsOpen={setIsSidebarOpen}
-                            currentUser={currentUser}
-                            isLocked={isTrialExpired && !isSuperAdmin}
-                        />
-                        {isSidebarOpen && (
-                            <div 
-                            onClick={() => setIsSidebarOpen(false)}
-                            className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"
-                            aria-hidden="true"
-                            ></div>
-                        )}
-                      </>
-                    )}
-        
-                  <div className="flex-1 flex flex-col overflow-hidden">
-                    <Header 
-                      title={isSuperAdmin ? getAdminPageTitle(adminActivePage) : (activeView === 'creator' ? activePage : 'Affiliate Portal')}
-                      theme={theme} 
-                      setTheme={setTheme} 
-                      onMenuClick={() => setIsSidebarOpen(true)}
-                      currentUser={currentUser}
-                      activeView={activeView}
-                      setActiveView={setActiveView}
-                      onLogout={handleSupabaseLogout}
-                      platformSettings={platformSettings}
-                      trialDaysRemaining={trialDaysRemaining}
-                      onUpgradeClick={handleUpgradeFromBanner}
-                    />
-                    <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-4 sm:p-6">
-                      {mainContent}
-                    </main>
-                  </div>
-                </div>
-                {isOnboarding && 
-                    <OnboardingModal 
-                        currentUser={currentUser} 
-                        onStepChange={handleOnboardingStepChange}
-                        onAddProduct={handleOnboardingAddProduct}
-                        onInviteAffiliate={handleOnboardingInviteAffiliate}
-                        onComplete={handleOnboardingComplete} 
-                    />
-                }
-            </>
-        );
-    }
-    
-    if(authStatus === 'LOGGED_OUT') {
-        switch(appView) {
-            case 'landing':
-                return <LandingPage 
-                            currentUser={currentUser}
-                            onNavigateToLogin={() => setAppView('login')} 
-                            onNavigateToRegister={() => setAppView('register')}
-                            onNavigateToDashboard={() => setAppView('app')}
-                            onNavigateToPartnerflowSignup={() => setAppView('partnerflow_affiliate_signup')} 
-                        />;
-            case 'login':
-                return <LoginPage onLogin={handlePasswordLogin} onBack={() => setAppView('landing')} onNavigateToRegister={() => setAppView('register')} />;
-            case 'register':
-                return <RegistrationPage onSignup={handleSupabaseSignup} onBack={() => setAppView('landing')} />;
-            case 'signup':
-                 return <AffiliateSignupPage onSignup={handleAffiliateSignup} onBack={() => setAppView('landing')} entrepreneur={{id: signupRefCode, name: 'Creator', companyName: 'Creator'} as User} />;
-            case 'partnerflow_affiliate_signup':
-                return <PartnerflowAffiliateSignupPage onSignup={handlePartnerflowAffiliateSignup} onBack={() => setAppView('landing')} />;
-            case 'stripe_connect':
-                return <StripeConnectPage onConnectSuccess={handleStripeConnectSuccess} onCancel={() => setAppView('app')} />;
-            default:
-                 return <NotFoundPage onNavigateHome={() => setAppView('landing')} />;
-        }
+            <div className="flex flex-col justify-center items-center h-screen w-screen bg-gray-100 dark:bg-gray-900 text-center p-4">
+                <LoadingSpinner />
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-white mt-6">Finalizing Your Account...</h2>
+                <p className="text-gray-600 dark:text-gray-400 mt-2 max-w-sm">
+                    We're setting things up for you. This usually takes just a few moments. The page will load automatically once it's ready.
+                </p>
+            </div>
+        )
     }
 
-    return <LoadingSpinner fullPage />;
+    // Handle routing based on appView state
+    switch (appView) {
+        case 'landing':
+            return <LandingPage currentUser={currentUser} onNavigateToLogin={() => setAppView('login')} onNavigateToRegister={() => setAppView('register')} onNavigateToDashboard={() => setAppView('app')} onNavigateToPartnerflowSignup={() => setAppView('partnerflow_affiliate_signup')} />;
+        case 'login':
+            return <LoginPage onLogin={handlePasswordLogin} onBack={() => setAppView('landing')} onNavigateToRegister={() => setAppView('register')} />;
+        case 'admin_login':
+            return <LoginPage onLogin={handlePasswordLogin} isAdmin={true} />;
+        case 'register':
+            return <RegistrationPage onSignup={handleSupabaseSignup} onBack={() => setAppView('login')} />;
+        case 'signup': {
+            const creator = allUsers.find(u => u.id === signupRefCode);
+            return <AffiliateSignupPage onSignup={handleAffiliateSignup} onBack={() => setAppView('landing')} entrepreneur={creator} />;
+        }
+        case 'partnerflow_affiliate_signup':
+            return <PartnerflowAffiliateSignupPage onSignup={handlePartnerflowAffiliateSignup} onBack={() => setAppView('landing')} />;
+        case 'stripe_connect':
+            return <StripeConnectPage onConnectSuccess={handleStripeConnectSuccess} onCancel={() => {setActivePage('Settings'); setAppView('app');}} />;
+        case 'app':
+            break; // Continue to app rendering logic
+        default:
+            return <NotFoundPage onNavigateHome={() => setAppView('landing')} />;
+    }
+    
+    if (!session || !currentUser) {
+        // Fallback to landing if not logged in but trying to access app
+        return <LandingPage currentUser={currentUser} onNavigateToLogin={() => setAppView('login')} onNavigateToRegister={() => setAppView('register')} onNavigateToDashboard={() => setAppView('app')} onNavigateToPartnerflowSignup={() => setAppView('partnerflow_affiliate_signup')} />;
+    }
+    
+    // Main App View
+    const isSuperAdmin = currentUser.roles.includes('super_admin');
+    const onboardingIncomplete = !isSuperAdmin && currentUser.roles.includes('creator') && (currentUser.onboardingStepCompleted || 0) < 5;
+
+    let pageTitle = '';
+    let mainContent;
+
+    if (isSuperAdmin) {
+        pageTitle = getAdminPageTitle(adminActivePage);
+        mainContent = renderSuperAdminContent(currentUser);
+    } else if (activeView === 'creator') {
+        pageTitle = activePage;
+        mainContent = renderCreatorContent(currentUser);
+    } else { // affiliate view
+        pageTitle = 'Affiliate Portal';
+        mainContent = <AffiliatePortal 
+            currentUser={currentUser} 
+            users={users} 
+            products={products} 
+            payouts={payouts}
+            onSimulateClick={handleSimulateClick}
+            onStartUpgrade={handleUpgradeFromBanner}
+            refetchData={() => fetchData(currentUser)}
+        />;
+    }
+
+    if (isUpgradeFlowActive) {
+        return <div className="p-4 sm:p-6 lg:p-8"><Billing currentUser={currentUser} affiliates={users} products={products} onPlanChange={handlePlanChange} isTrialExpired={false} isUpgradeFlow={true} onCancelUpgrade={() => setIsUpgradeFlowActive(false)} /></div>;
+    }
+
+    return (
+        <div className={`flex h-screen bg-gray-100 dark:bg-gray-900 ${activeView === 'affiliate' && !isSuperAdmin ? 'flex-col' : ''}`}>
+             {(activeView === 'creator' || isSuperAdmin) && (
+                <Sidebar 
+                    activePage={isSuperAdmin ? adminActivePage : activePage} 
+                    setActivePage={isSuperAdmin ? setAdminActivePage : setActivePage} 
+                    isOpen={isSidebarOpen} 
+                    setIsOpen={setIsSidebarOpen}
+                    currentUser={currentUser}
+                    isLocked={isTrialExpired}
+                />
+            )}
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <Header 
+                    title={pageTitle}
+                    theme={theme}
+                    setTheme={setTheme}
+                    onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    currentUser={currentUser}
+                    activeView={activeView}
+                    setActiveView={setActiveView}
+                    onLogout={handleSupabaseLogout}
+                    platformSettings={platformSettings}
+                    trialDaysRemaining={trialDaysRemaining}
+                    onUpgradeClick={handleUpgradeFromBanner}
+                    onStartOnboarding={() => setIsOnboarding(true)}
+                    onboardingIncomplete={onboardingIncomplete}
+                />
+                <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:p-8">
+                    {mainContent}
+                </main>
+            </div>
+            {isOnboarding && <OnboardingModal 
+                currentUser={currentUser}
+                onStepChange={handleOnboardingStepChange}
+                onAddProduct={handleOnboardingAddProduct}
+                onInviteAffiliate={handleOnboardingInviteAffiliate}
+                onComplete={handleOnboardingComplete}
+                onSkip={handleSkipOnboarding}
+            />}
+        </div>
+    );
   }
 
   return (
-    <div className={`h-screen bg-gray-100 dark:bg-gray-900 font-sans transition-colors duration-300`}>
+    <>
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
-      {renderAppContent()}
-    </div>
+      {renderContent()}
+    </>
   );
 };
 

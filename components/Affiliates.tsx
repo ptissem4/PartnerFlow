@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import { User } from '../data/mockData';
+import { User, Payout } from '../data/mockData';
 import { Plan } from '../App';
 import AffiliateDetail from './AffiliateDetail';
 import AddAffiliateModal from './AddAffiliateModal';
@@ -9,6 +10,7 @@ import { supabase } from '../lib/supabaseClient';
 
 interface AffiliatesProps {
     affiliates: User[];
+    payouts: Payout[];
     showToast: (message: string) => void;
     currentPlan: Plan;
     currentUser: User;
@@ -28,7 +30,7 @@ const getStatusBadge = (status: User['status']) => {
   }
 };
 
-const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, showToast, currentPlan, currentUser, refetchData }) => {
+const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, payouts, showToast, currentPlan, currentUser, refetchData }) => {
     const [selectedAffiliate, setSelectedAffiliate] = useState<User | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<'All' | User['status']>('All');
@@ -173,7 +175,8 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, showToast, currentP
     }, [affiliates, statusFilter, searchQuery]);
     
     if (selectedAffiliate) {
-        return <AffiliateDetail affiliate={selectedAffiliate} onBack={() => setSelectedAffiliate(null)} />;
+        const affiliatePayouts = payouts.filter(p => p.user_id === selectedAffiliate.id);
+        return <AffiliateDetail affiliate={selectedAffiliate} payouts={affiliatePayouts} onBack={() => setSelectedAffiliate(null)} />;
     }
 
   return (

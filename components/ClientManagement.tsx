@@ -35,7 +35,7 @@ const ClientManagement: React.FC<ClientManagementProps> = ({ clients, allUsers, 
                 return (
                     client.name.toLowerCase().includes(query) ||
                     client.email.toLowerCase().includes(query) ||
-                    client.companyName?.toLowerCase().includes(query)
+                    client.company_name?.toLowerCase().includes(query)
                 );
             });
     }, [clientData, planFilter, searchQuery]);

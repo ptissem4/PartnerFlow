@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { User } from '../data/mockData';
 
@@ -7,9 +8,10 @@ interface OnboardingModalProps {
   onAddProduct: (name: string, price: number) => void;
   onInviteAffiliate: (email: string) => void;
   onComplete: () => void;
+  onSkip: () => void;
 }
 
-const OnboardingModal: React.FC<OnboardingModalProps> = ({ currentUser, onStepChange, onAddProduct, onInviteAffiliate, onComplete }) => {
+const OnboardingModal: React.FC<OnboardingModalProps> = ({ currentUser, onStepChange, onAddProduct, onInviteAffiliate, onComplete, onSkip }) => {
   const [step, setStep] = useState((currentUser.onboardingStepCompleted || 0) + 1);
   const [copied, setCopied] = useState(false);
   const totalSteps = 5;
@@ -172,18 +174,27 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ currentUser, onStepCh
         </div>
         
         <div className="flex items-center justify-between mt-6">
-            <div className="flex items-center space-x-2">
-                {Array.from({ length: totalSteps }).map((_, i) => (
-                    <div key={i} className={`h-2 w-8 rounded-full transition-colors ${step > i ? 'bg-cyan-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
-                ))}
-            </div>
-            <div className="space-x-3">
-                {step > 1 && step < 5 && (
-                    <button onClick={prevStep} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">
-                        Back
+            <div>
+                {step < 5 && (
+                    <button onClick={onSkip} className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:underline">
+                        Do this later
                     </button>
                 )}
-                {renderButtons()}
+            </div>
+            <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                    {Array.from({ length: totalSteps }).map((_, i) => (
+                        <div key={i} className={`h-2 w-8 rounded-full transition-colors ${step > i ? 'bg-cyan-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                    ))}
+                </div>
+                <div className="space-x-3">
+                    {step > 1 && step < 5 && (
+                        <button onClick={prevStep} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">
+                            Back
+                        </button>
+                    )}
+                    {renderButtons()}
+                </div>
             </div>
         </div>
       </div>

@@ -14,7 +14,7 @@ export interface User {
   onboardingStepCompleted?: number; // 0: not started, 1: welcome, 2: product added, 3: tracking, 4: affiliate invited, 5: complete
 
   // Creator-specific
-  companyName?: string;
+  company_name?: string;
   
   // Affiliate-specific
   sales?: number;

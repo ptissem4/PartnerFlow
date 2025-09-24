@@ -111,7 +111,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, userSettings, onSettin
               </div>
               <div>
                   <label htmlFor="company" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Company Name</label>
-                  <input type="text" id="company" defaultValue={currentUser.companyName} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" />
+                  <input type="text" id="company" defaultValue={currentUser.company_name} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" />
               </div>
           </SettingsCard>
 

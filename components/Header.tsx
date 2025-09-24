@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Theme, ActiveView } from '../App';
 import { User, PlatformSettings } from '../data/mockData';
@@ -14,6 +15,8 @@ interface HeaderProps {
   platformSettings: PlatformSettings;
   trialDaysRemaining: number | null;
   onUpgradeClick: () => void;
+  onStartOnboarding: () => void;
+  onboardingIncomplete: boolean;
 }
 
 const ThemeToggleButton: React.FC<{ theme: Theme; toggleTheme: () => void }> = ({ theme, toggleTheme }) => (
@@ -50,7 +53,7 @@ const ViewSwitcher: React.FC<{ activeView: ActiveView; setActiveView: (view: Act
 };
 
 
-const Header: React.FC<HeaderProps> = ({ title, theme, setTheme, onMenuClick, currentUser, activeView, setActiveView, onLogout, platformSettings, trialDaysRemaining, onUpgradeClick }) => {
+const Header: React.FC<HeaderProps> = ({ title, theme, setTheme, onMenuClick, currentUser, activeView, setActiveView, onLogout, platformSettings, trialDaysRemaining, onUpgradeClick, onStartOnboarding, onboardingIncomplete }) => {
     const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(false);
     
     useEffect(() => {
@@ -101,6 +104,14 @@ const Header: React.FC<HeaderProps> = ({ title, theme, setTheme, onMenuClick, cu
             <h2 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-white ml-4 md:ml-0">{title}</h2>
           </div>
           <div className="flex items-center space-x-4">
+            {onboardingIncomplete && !isSuperAdmin && (
+                <button 
+                    onClick={onStartOnboarding}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-teal-500 rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75 animate-pulse"
+                >
+                    Complete Setup
+                </button>
+            )}
             {canSwitchView && !isSuperAdmin && <ViewSwitcher activeView={activeView} setActiveView={setActiveView} />}
             <ThemeToggleButton theme={theme} toggleTheme={handleThemeToggle} />
             <button onClick={onLogout} className="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-cyan-500">

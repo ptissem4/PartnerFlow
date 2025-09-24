@@ -63,7 +63,7 @@ const AffiliateSignupPage: React.FC<AffiliateSignupPageProps> = ({ onSignup, onB
             </div>
           <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Application Submitted!</h2>
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Your application to join the affiliate program for <strong>{entrepreneur.companyName}</strong> is now pending approval. You will receive an email once it has been reviewed.
+            Your application to join the affiliate program for <strong>{entrepreneur.company_name}</strong> is now pending approval. You will receive an email once it has been reviewed.
           </p>
           <button onClick={onBack} className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-colors">
             Return to Home
@@ -78,8 +78,8 @@ const AffiliateSignupPage: React.FC<AffiliateSignupPageProps> = ({ onSignup, onB
     <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-800">
       <div className="w-full max-w-md p-4">
         <div className="text-center mb-8">
-            <img src={entrepreneur.avatar} alt={entrepreneur.companyName} className="w-20 h-20 rounded-full mx-auto mb-4"/>
-          <h2 className="mt-4 text-2xl font-bold text-gray-800 dark:text-white">Join the {entrepreneur.companyName} Affiliate Program</h2>
+            <img src={entrepreneur.avatar} alt={entrepreneur.company_name} className="w-20 h-20 rounded-full mx-auto mb-4"/>
+          <h2 className="mt-4 text-2xl font-bold text-gray-800 dark:text-white">Join the {entrepreneur.company_name} Affiliate Program</h2>
           <p className="text-gray-500 dark:text-gray-400">Create your account to start earning.</p>
         </div>
         <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 shadow-2xl rounded-lg px-8 pt-6 pb-8 mb-4">

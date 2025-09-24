@@ -162,8 +162,8 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, users, p
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                  {affiliatePartners.map(partner => (
                     <div key={partner.id} onClick={() => setSelectedPartner(partner)} className="p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col items-center text-center">
-                        <img src={partner.avatar} alt={partner.companyName} className="w-16 h-16 rounded-full mb-4"/>
-                        <p className="font-bold text-gray-800 dark:text-white text-lg">{partner.companyName}</p>
+                        <img src={partner.avatar} alt={partner.company_name} className="w-16 h-16 rounded-full mb-4"/>
+                        <p className="font-bold text-gray-800 dark:text-white text-lg">{partner.company_name}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">by {partner.name}</p>
                     </div>
                  ))}
@@ -180,7 +180,7 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, users, p
         </svg>
         Back to Partners
     </button>
-    <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Partner Dashboard: {selectedPartner?.companyName}</h2>
+    <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Partner Dashboard: {selectedPartner?.company_name}</h2>
     
     {/* Stats */}
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">

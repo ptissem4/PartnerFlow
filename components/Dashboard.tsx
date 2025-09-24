@@ -1,10 +1,7 @@
 
-
-
-
 import React, { useState, useMemo } from 'react';
 import StatCard from './StatCard';
-import { monthlySalesData, User, Product, Payout } from '../data/mockData';
+import { User, Product, Payout } from '../data/mockData';
 import SalesPerformanceChart from './SalesPerformanceChart';
 import RecordSaleModal from './RecordSaleModal';
 import DateRangeFilter from './DateRangeFilter';
@@ -70,6 +67,35 @@ const Dashboard: React.FC<DashboardProps> = ({ affiliates, products, payouts, on
         return getDateRange(dateRange);
     }, [dateRange, customStartDate, customEndDate]);
 
+    const monthlySalesData = useMemo(() => {
+        const salesByMonth: { [key: string]: number } = {};
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        
+        const today = new Date();
+        const monthKeys: string[] = [];
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+            const monthName = `${monthNames[d.getMonth()]} '${String(d.getFullYear()).slice(-2)}`;
+            salesByMonth[monthName] = 0;
+            monthKeys.push(monthName);
+        }
+
+        const startOf12Months = new Date(today.getFullYear(), today.getMonth() - 11, 1);
+        
+        payouts.forEach(payout => {
+            payout.sales.forEach(sale => {
+                const saleDate = new Date(sale.date);
+                if (saleDate >= startOf12Months) {
+                    const saleMonthName = `${monthNames[saleDate.getMonth()]} '${String(saleDate.getFullYear()).slice(-2)}`;
+                    if (salesByMonth.hasOwnProperty(saleMonthName)) {
+                        salesByMonth[saleMonthName] += sale.saleAmount;
+                    }
+                }
+            });
+        });
+
+        return monthKeys.map(name => ({ name, sales: salesByMonth[name] }));
+    }, [payouts]);
 
     const topAffiliates = [...affiliates]
         .filter(a => a.status === 'Active')
