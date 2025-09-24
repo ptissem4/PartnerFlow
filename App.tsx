@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
@@ -83,6 +77,7 @@ const App: React.FC = () => {
   const [signupRefCode, setSignupRefCode] = useState<string | null>(null);
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [isFinalizingAccount, setIsFinalizingAccount] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(false);
 
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [adminActivePage, setAdminActivePage] = useState<AdminPage>('AdminDashboard');
@@ -114,6 +109,10 @@ const App: React.FC = () => {
   }
 
   const loadUserAndData = async (session: Session) => {
+    if (isDataLoading) return;
+    setIsDataLoading(true);
+
+    try {
       let profile: User | null = null;
       let fetchError: any = null;
       const maxRetries = 30; // Increased to 30 seconds
@@ -214,6 +213,9 @@ const App: React.FC = () => {
       if (userToSet.roles.includes('creator') && (userToSet.onboardingStepCompleted || 0) < 5) {
           setIsOnboarding(true);
       }
+    } finally {
+        setIsDataLoading(false);
+    }
   };
 
   useEffect(() => {
