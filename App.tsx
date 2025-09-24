@@ -224,26 +224,25 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-        setSession(session);
-        if (session) {
-            loadUserAndData(session);
-        } else {
-            setAuthStatus('LOGGED_OUT');
-        }
-    });
-
+    // Relies solely on onAuthStateChange, which fires immediately with the current session.
+    // This avoids race conditions between getSession() and the listener.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         setSession(session);
         if (session) {
             loadUserAndData(session);
         } else {
+            // Reset all user-related state for a clean logout.
             setCurrentUser(null);
             setUserSettings(null);
             setUsers([]);
             setAllUsers([]);
             setProducts([]);
             setPayouts([]);
+            setPayments([]);
+            setCommunications([]);
+            setActivePage('Dashboard');
+            setAdminActivePage('AdminDashboard');
+            setActiveView('creator');
             setAppView('landing');
             setAuthStatus('LOGGED_OUT');
         }
@@ -882,9 +881,9 @@ const App: React.FC = () => {
             return <NotFoundPage onNavigateHome={() => setAppView('landing')} />;
     }
     
-    if (!session || !currentUser) {
-        // Fallback to landing if not logged in but trying to access app
-        return <LandingPage currentUser={currentUser} onNavigateToLogin={() => setAppView('login')} onNavigateToRegister={() => setAppView('register')} onNavigateToDashboard={() => setAppView('app')} onNavigateToPartnerflowSignup={() => setAppView('partnerflow_affiliate_signup')} />;
+    if (authStatus !== 'LOGGED_IN' || !session || !currentUser) {
+        // Fallback to landing if not fully logged in
+        return <LandingPage currentUser={null} onNavigateToLogin={() => setAppView('login')} onNavigateToRegister={() => setAppView('register')} onNavigateToDashboard={() => setAppView('app')} onNavigateToPartnerflowSignup={() => setAppView('partnerflow_affiliate_signup')} />;
     }
     
     // Main App View
