@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
@@ -157,10 +158,12 @@ const App: React.FC = () => {
                   "Forcing a logout. Please try logging in again in a moment."
               );
               showToast("Your account is still being finalized. Please log in again in a moment.");
+              setAuthStatus('LOGGED_OUT');
               await handleSupabaseLogout();
           } else {
               console.error("Fatal: An unexpected error occurred while fetching the user profile.", "Fetch Error:", JSON.stringify(fetchError, null, 2));
               showToast("An error occurred while retrieving your profile. Logging out.");
+              setAuthStatus('LOGGED_OUT');
               await handleSupabaseLogout();
           }
           return;
@@ -217,6 +220,7 @@ const App: React.FC = () => {
     } catch (e) {
         console.error("A critical error occurred during the login process:", e);
         showToast("An unexpected error occurred. Logging out for safety.");
+        setAuthStatus('LOGGED_OUT');
         await handleSupabaseLogout();
     } finally {
         setIsDataLoading(false);
