@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { User } from '../data/mockData';
 
 interface AffiliateSignupPageProps {
-  onSignup: (name: string, email: string) => void;
+  onSignup: (name: string, email: string) => Promise<{ success: boolean; error?: string }>;
   onBack: () => void;
   entrepreneur?: User;
 }
@@ -14,7 +14,7 @@ const AffiliateSignupPage: React.FC<AffiliateSignupPageProps> = ({ onSignup, onB
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email) {
         setError("Name and email are required.");
@@ -30,12 +30,14 @@ const AffiliateSignupPage: React.FC<AffiliateSignupPageProps> = ({ onSignup, onB
     setError(null);
     setIsLoading(true);
 
-    // Simulate network delay
-    setTimeout(() => {
-      onSignup(name, email);
-      setIsLoading(false);
+    const result = await onSignup(name, email);
+    
+    if (result.success) {
       setIsSuccess(true);
-    }, 1000);
+    } else {
+      setError(result.error || "An unknown error occurred.");
+    }
+    setIsLoading(false);
   };
 
   if (!entrepreneur) {

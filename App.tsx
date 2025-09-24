@@ -214,6 +214,10 @@ const App: React.FC = () => {
       if (userToSet.roles.includes('creator') && (userToSet.onboardingStepCompleted || 0) < 5) {
           setIsOnboarding(true);
       }
+    } catch (e) {
+        console.error("A critical error occurred during the login process:", e);
+        showToast("An unexpected error occurred. Logging out for safety.");
+        await handleSupabaseLogout();
     } finally {
         setIsDataLoading(false);
     }
@@ -481,12 +485,13 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAffiliateSignup = async (name: string, email: string) => {
+  const handleAffiliateSignup = async (name: string, email: string): Promise<{ success: boolean; error?: string }> => {
     if (!signupRefCode) {
-        showToast("Invalid signup link.");
-        return;
+        const errorMsg = "Invalid signup link. Please use the link provided by the creator.";
+        showToast(errorMsg);
+        return { success: false, error: errorMsg };
     }
-    // This flow creates a pending user profile and a partnership application.
+
     const { data: newProfile, error } = await supabase.from('profiles').insert({
         name, email,
         roles: ['affiliate'],
@@ -497,8 +502,12 @@ const App: React.FC = () => {
     }).select().single();
 
     if (error || !newProfile) {
-        showToast(`Error submitting application: ${error?.message || 'Unknown error'}`);
-        return;
+        let errorMsg = `Error submitting application: ${error?.message || 'Unknown error'}`;
+        if (error?.code === '23505') {
+            errorMsg = "An account with this email already exists.";
+        }
+        showToast(errorMsg);
+        return { success: false, error: errorMsg };
     }
 
     const { error: partnershipError } = await supabase.from('partnerships').insert({
@@ -508,14 +517,63 @@ const App: React.FC = () => {
     });
 
     if (partnershipError) {
-        showToast(`Error creating partnership: ${partnershipError.message}`);
+        const errorMsg = `Error creating partnership: ${partnershipError.message}`;
+        showToast(errorMsg);
+        await supabase.from('profiles').delete().eq('id', newProfile.id); // Rollback
+        return { success: false, error: errorMsg };
     } else {
-        showToast("Application submitted! It is now pending approval.");
+        // Success is handled by the page, no toast needed here.
+        return { success: true };
     }
   };
 
-  const handlePartnerflowAffiliateSignup = (name: string, email: string) => {
-    showToast("This feature is not yet fully implemented.");
+  const handlePartnerflowAffiliateSignup = async (name: string, email: string): Promise<{ success: boolean; error?: string }> => {
+    const { data: partnerflowCreator, error: creatorError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', 'admin@partnerflow.app')
+        .single();
+
+    if (creatorError || !partnerflowCreator) {
+        const errorMsg = "Could not find the PartnerFlow program. Please try again later.";
+        showToast(errorMsg);
+        console.error("Error finding PartnerFlow creator account:", creatorError);
+        return { success: false, error: errorMsg };
+    }
+
+    const { data: newProfile, error: profileError } = await supabase.from('profiles').insert({
+        name, 
+        email,
+        roles: ['affiliate'],
+        status: 'Pending',
+        avatar: `https://i.pravatar.cc/150?u=${email}`,
+        joinDate: new Date().toISOString().split('T')[0],
+        referralCode: name.toLowerCase().replace(/[^a-z0-9]/gi, '-').slice(0, 15),
+    }).select().single();
+
+    if (profileError || !newProfile) {
+        let errorMsg = `Error submitting application: ${profileError?.message || 'Unknown error'}`;
+        if (profileError?.code === '23505') {
+             errorMsg = "An account with this email already exists.";
+        }
+        showToast(errorMsg);
+        return { success: false, error: errorMsg };
+    }
+
+    const { error: partnershipError } = await supabase.from('partnerships').insert({
+        creator_id: partnerflowCreator.id,
+        affiliate_id: newProfile.id,
+        status: 'Pending',
+    });
+
+    if (partnershipError) {
+        const errorMsg = `Error creating partnership application: ${partnershipError.message}`;
+        showToast(errorMsg);
+        await supabase.from('profiles').delete().eq('id', newProfile.id);
+        return { success: false, error: errorMsg };
+    } else {
+        return { success: true };
+    }
   };
 
   const handleSupabaseSignup = async (name: string, companyName: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
