@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
@@ -164,8 +166,31 @@ const App: React.FC = () => {
           return;
       }
   
-      // Grant admin role if email matches
       let userToSet = profile as User;
+
+      // If a new creator signs up, their trial date might not be set by the DB trigger. Set it here.
+      if (userToSet.roles.includes('creator') && !userToSet.trialEndsAt && !userToSet.currentPlan) {
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 14);
+        const trialEndsAtString = trialEndDate.toISOString();
+
+        const { data: updatedProfile, error: updateError } = await supabase
+            .from('profiles')
+            .update({ trialEndsAt: trialEndsAtString })
+            .eq('id', userToSet.id)
+            .select()
+            .single();
+        
+        if (updateError) {
+            console.error("Failed to set trial end date:", updateError);
+            showToast("Could not initialize your trial. Please contact support.");
+        } else {
+            userToSet = updatedProfile as User;
+            showToast("Your 14-day free trial has started!");
+        }
+      }
+
+      // Grant admin role if email matches
       userToSet.roles = userToSet.roles || [];
       const adminEmails = ['admin@partnerflow.app', 'ptissem4@hotmail.com'];
       if (adminEmails.includes(userToSet.email) && !userToSet.roles.includes('super_admin')) {
@@ -224,8 +249,22 @@ const App: React.FC = () => {
     if (!currentUser) return;
 
     const { data: settingsData } = await supabase.from('user_settings').select('*').eq('user_id', currentUser.id).single();
-    if (settingsData) setUserSettings(settingsData as UserSettings);
-    else setUserSettings(initialUserSettings);
+    if (settingsData) {
+        setUserSettings(settingsData as UserSettings);
+    } else {
+        // No settings found, likely a new user. Create a default set based on their profile.
+        const defaultSettings: UserSettings = {
+            ...initialUserSettings,
+            user_id: currentUser.id,
+            name: currentUser.name,
+            email: currentUser.email,
+            company_name: currentUser.company_name || '',
+        };
+        setUserSettings(defaultSettings);
+        
+        // Persist these initial settings to the database for the next session.
+        await supabase.from('user_settings').insert(defaultSettings);
+    }
     
     const { data: platformSettingsData } = await supabase.from('platform_settings').select('*').single();
     if (platformSettingsData) setPlatformSettings(platformSettingsData as PlatformSettingsType);
