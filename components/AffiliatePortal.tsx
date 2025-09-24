@@ -68,8 +68,10 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, users, p
   const [showCodeModal, setShowCodeModal] = useState<string | null>(null);
 
   const affiliatePartners = useMemo(() => {
-    return users.filter(u => currentUser.partnerIds?.includes(u.id));
-  }, [users, currentUser.partnerIds]);
+    // The `users` prop already contains the correct list of creator partners for the logged-in affiliate.
+    // The `currentUser.partnerIds` property was not being populated, causing this to return an empty array.
+    return users;
+  }, [users]);
 
   const { availableCommission, pendingCommission, recentSales } = useMemo(() => {
     let available = 0;

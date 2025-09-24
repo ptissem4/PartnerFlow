@@ -156,7 +156,8 @@ const App: React.FC = () => {
                   "This could be due to a slow database trigger for profile creation.",
                   "Forcing a logout. Please try logging in again in a moment."
               );
-              showToast("Your account is still being finalized. Please refresh the page in a moment.");
+              showToast("Your account is still being finalized. Please log in again in a moment.");
+              await handleSupabaseLogout();
           } else {
               console.error("Fatal: An unexpected error occurred while fetching the user profile.", "Fetch Error:", JSON.stringify(fetchError, null, 2));
               showToast("An error occurred while retrieving your profile. Logging out.");
