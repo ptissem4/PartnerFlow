@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
@@ -110,14 +111,16 @@ const App: React.FC = () => {
   }
 
   const loadUserAndData = async (session: Session) => {
+    // A single, robust guard to prevent concurrent executions.
     if (isDataLoading) return;
     setIsDataLoading(true);
+    setAuthStatus('INITIAL_LOADING'); // Indicate loading has started for the user.
 
     try {
       let profile: User | null = null;
       let fetchError: any = null;
-      const maxRetries = 30; // Increased to 30 seconds
-      const retryDelay = 1000; // ms
+      const maxRetries = 30; // 30 seconds
+      const retryDelay = 1000; // 1 second
 
       const { data: initialCheck } = await supabase.from('profiles').select('id').eq('id', session.user.id).single();
       if (!initialCheck) {
@@ -134,7 +137,7 @@ const App: React.FC = () => {
           if (data) {
               profile = data as User;
               fetchError = null;
-              break; // Profile found, exit loop
+              break;
           }
 
           if (error && error.code !== 'PGRST116') {
@@ -151,65 +154,42 @@ const App: React.FC = () => {
       setIsFinalizingAccount(false);
 
       if (fetchError || !profile) {
-          if (fetchError?.code === 'PGRST116') {
-               console.warn(
-                  "Fatal: User profile not found after login, even after retries.",
-                  "This could be due to a slow database trigger for profile creation.",
-                  "Forcing a logout. Please try logging in again in a moment."
-              );
-              showToast("Your account is still being finalized. Please log in again in a moment.");
-              setAuthStatus('LOGGED_OUT');
-              await handleSupabaseLogout();
-          } else {
-              console.error("Fatal: An unexpected error occurred while fetching the user profile.", "Fetch Error:", JSON.stringify(fetchError, null, 2));
-              showToast("An error occurred while retrieving your profile. Logging out.");
-              setAuthStatus('LOGGED_OUT');
-              await handleSupabaseLogout();
-          }
+          console.error("Fatal error fetching profile:", fetchError);
+          showToast(fetchError?.code === 'PGRST116'
+              ? "Your account is still being set up. Please try logging in again shortly."
+              : "An error occurred fetching your profile. Please try again."
+          );
+          await handleSupabaseLogout(); // This will trigger the useEffect to reset state.
+          // Set authStatus explicitly here to unblock the UI immediately.
+          setAuthStatus('LOGGED_OUT');
           return;
       }
   
       let userToSet = profile as User;
 
-      // If a new creator signs up, their trial date might not be set by the DB trigger. Set it here.
+      // Handle trial logic for new creators
       if (userToSet.roles.includes('creator') && !userToSet.trialEndsAt && !userToSet.currentPlan) {
         const trialEndDate = new Date();
         trialEndDate.setDate(trialEndDate.getDate() + 14);
-        const trialEndsAtString = trialEndDate.toISOString();
-
         const { data: updatedProfile, error: updateError } = await supabase
             .from('profiles')
-            .update({ trialEndsAt: trialEndsAtString })
+            .update({ trialEndsAt: trialEndDate.toISOString() })
             .eq('id', userToSet.id)
-            .select()
-            .single();
-        
-        if (updateError) {
-            console.error("Failed to set trial end date:", updateError);
-            showToast("Could not initialize your trial. Please contact support.");
-        } else {
-            userToSet = updatedProfile as User;
-            showToast("Your 14-day free trial has started!");
-        }
+            .select().single();
+        if (updateError) console.error("Failed to set trial end date:", updateError);
+        else userToSet = updatedProfile as User;
       }
 
       // Grant admin role if email matches
-      userToSet.roles = userToSet.roles || [];
       const adminEmails = ['admin@partnerflow.app', 'ptissem4@hotmail.com'];
       if (adminEmails.includes(userToSet.email) && !userToSet.roles.includes('super_admin')) {
           const { data: updatedProfile, error: updateError } = await supabase
-              .from('profiles').update({ roles: [...userToSet.roles, 'super_admin'] }).eq('id', userToSet.id).select().single();
-          if (updateError) {
-              console.error("Failed to grant admin role:", updateError);
-          } else {
-              userToSet = updatedProfile as User;
-              showToast("Super Admin access granted.");
-          }
+              .from('profiles').update({ roles: [...(userToSet.roles || []), 'super_admin'] }).eq('id', userToSet.id).select().single();
+          if (updateError) console.error("Failed to grant admin role:", updateError);
+          else userToSet = updatedProfile as User;
       }
       
       setCurrentUser(userToSet);
-  
-      // Fetch all other required data
       await fetchData(userToSet);
       
       setAppView('app');
@@ -220,40 +200,50 @@ const App: React.FC = () => {
     } catch (e) {
         console.error("A critical error occurred during the login process:", e);
         showToast("An unexpected error occurred. Logging out for safety.");
-        setAuthStatus('LOGGED_OUT');
         await handleSupabaseLogout();
+        setAuthStatus('LOGGED_OUT');
     } finally {
         setIsDataLoading(false);
+        setIsFinalizingAccount(false);
     }
   };
-
+  
+  // Effect #1: Solely responsible for listening to auth changes and setting the session.
   useEffect(() => {
-    // Relies solely on onAuthStateChange, which fires immediately with the current session.
-    // This avoids race conditions between getSession() and the listener.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         setSession(session);
-        if (session) {
-            loadUserAndData(session);
-        } else {
-            // Reset all user-related state for a clean logout.
-            setCurrentUser(null);
-            setUserSettings(null);
-            setUsers([]);
-            setAllUsers([]);
-            setProducts([]);
-            setPayouts([]);
-            setPayments([]);
-            setCommunications([]);
-            setActivePage('Dashboard');
-            setAdminActivePage('AdminDashboard');
-            setActiveView('creator');
-            setAppView('landing');
-            setAuthStatus('LOGGED_OUT');
-        }
     });
-
     return () => subscription.unsubscribe();
   }, []);
+
+  // Effect #2: Solely responsible for reacting to session changes to either load data or reset state.
+  // This prevents race conditions from multiple auth events firing.
+  useEffect(() => {
+    // If a session exists and we don't have a user loaded, it's a fresh login. Load data.
+    if (session && !currentUser) {
+        loadUserAndData(session);
+    } 
+    // If the session is gone, it's a logout. Reset all application state.
+    else if (!session) {
+        setCurrentUser(null);
+        setUserSettings(null);
+        setUsers([]);
+        setAllUsers([]);
+        setProducts([]);
+        setPayouts([]);
+        setPayments([]);
+        setCommunications([]);
+        setActivePage('Dashboard');
+        setAdminActivePage('AdminDashboard');
+        setActiveView('creator');
+        // Only set appView to landing on logout if it's not a special route.
+        if (appView !== 'admin_login' && appView !== 'signup' && appView !== 'partnerflow_affiliate_signup') {
+            setAppView('landing');
+        }
+        setAuthStatus('LOGGED_OUT');
+    }
+  }, [session]);
+
 
   const fetchData = async (currentUser: User) => {
     if (!currentUser) return;
@@ -262,7 +252,6 @@ const App: React.FC = () => {
     if (settingsData) {
         setUserSettings(settingsData as UserSettings);
     } else {
-        // No settings found, likely a new user. Create a default set based on their profile.
         const defaultSettings: UserSettings = {
             ...initialUserSettings,
             user_id: currentUser.id,
@@ -271,8 +260,6 @@ const App: React.FC = () => {
             company_name: currentUser.company_name || '',
         };
         setUserSettings(defaultSettings);
-        
-        // Persist these initial settings to the database for the next session.
         await supabase.from('user_settings').insert(defaultSettings);
     }
     
@@ -363,7 +350,7 @@ const App: React.FC = () => {
   const isTrialExpired = trialDaysRemaining === 0;
 
   useEffect(() => {
-    // Handle special routing first
+    // Handle special routing on initial load
     if (window.location.pathname === '/admin-portal') {
       setAppView('admin_login');
       return;
@@ -413,8 +400,6 @@ const App: React.FC = () => {
   };
 
   const recordSaleForAffiliate = async (affiliateId: string, productId: number, saleAmount: number) => {
-    // This is a complex transactional operation, better handled by a database function.
-    // For now, we'll perform sequential updates.
     const { data: product, error: productError } = await supabase.from('products').select('*').eq('id', productId).single();
     if (productError || !product) {
       showToast("Error: Product not found.");
@@ -461,7 +446,6 @@ const App: React.FC = () => {
   };
 
   const handleSimulateClick = async (productId: number, affiliateId: string) => {
-    // In a real app, this would be handled server-side to prevent fraud.
     await supabase.rpc('increment_clicks', { p_id: productId, a_id: affiliateId });
     showToast(`Click simulated!`);
     if(currentUser) fetchData(currentUser);
@@ -475,7 +459,7 @@ const App: React.FC = () => {
         showToast(userFriendlyError);
         return { success: false, error: userFriendlyError };
     }
-    showToast('Login successful!');
+    // Success is now handled by the useEffect watching the session.
     return { success: true };
   };
   
@@ -525,7 +509,6 @@ const App: React.FC = () => {
         await supabase.from('profiles').delete().eq('id', newProfile.id); // Rollback
         return { success: false, error: errorMsg };
     } else {
-        // Success is handled by the page, no toast needed here.
         return { success: true };
     }
   };
@@ -580,8 +563,7 @@ const App: React.FC = () => {
   };
 
   const handleSupabaseSignup = async (name: string, companyName: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    // This relies on a trigger in Supabase to create the profile from metadata.
-    const { data, error } = await supabase.auth.signUp({ 
+    const { error } = await supabase.auth.signUp({ 
         email, 
         password,
         options: {
@@ -598,7 +580,6 @@ const App: React.FC = () => {
         return { success: false, error: error.message };
     }
     
-    // Success is handled by onAuthStateChange, which will call loadUserAndData.
     return { success: true };
   };
 
@@ -637,7 +618,6 @@ const App: React.FC = () => {
   
   const handleOnboardingInviteAffiliate = async (email: string) => {
     if (!currentUser) return;
-     // Create a pending profile and partnership
     const { data: newProfile, error: profileError } = await supabase.from('profiles').insert({
         name: `(${email.split('@')[0]})`, email, roles: ['affiliate'], status: 'Pending',
         avatar: `https://i.pravatar.cc/150?u=${email}`, joinDate: new Date().toISOString().split('T')[0],
@@ -688,7 +668,7 @@ const App: React.FC = () => {
         }).eq('id', currentUser.id);
         
         if (!error && session) {
-            await loadUserAndData(session); // Refetch all data to reflect plan changes
+            await loadUserAndData(session);
              if (isUpgradingFromAffiliate) {
                 showToast(`Successfully subscribed! Welcome to the Creator Dashboard.`);
                 setActiveView('creator');
@@ -886,8 +866,7 @@ const App: React.FC = () => {
     }
     
     if (authStatus !== 'LOGGED_IN' || !session || !currentUser) {
-        // Fallback to landing if not fully logged in
-        return <LandingPage currentUser={null} onNavigateToLogin={() => setAppView('login')} onNavigateToRegister={() => setAppView('register')} onNavigateToDashboard={() => setAppView('app')} onNavigateToPartnerflowSignup={() => setAppView('partnerflow_affiliate_signup')} />;
+        return <LoadingSpinner fullPage />;
     }
     
     // Main App View
@@ -958,6 +937,7 @@ const App: React.FC = () => {
                 onAddProduct={handleOnboardingAddProduct}
                 onInviteAffiliate={handleOnboardingInviteAffiliate}
                 onComplete={handleOnboardingComplete}
+                // FIX: Corrected typo from handleOnboardingSkip to handleSkipOnboarding
                 onSkip={handleSkipOnboarding}
             />}
         </div>
