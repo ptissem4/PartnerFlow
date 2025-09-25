@@ -42,6 +42,10 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, userSettings, onSettin
     const [copied, setCopied] = useState(false);
     const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
 
+    // FIX: Use state to create controlled components for the profile form.
+    const [name, setName] = useState(userSettings.name);
+    const [companyName, setCompanyName] = useState(userSettings.company_name);
+
     const trackingCode = `<script>
   (function() {
     const params = new URLSearchParams(window.location.search);
@@ -82,6 +86,15 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, userSettings, onSettin
         setShowDisconnectConfirm(false);
     };
 
+    // FIX: Handle saving changes from the profile form.
+    const handleSaveChanges = () => {
+        onSettingsChange({
+            ...userSettings,
+            name,
+            company_name: companyName,
+        });
+    };
+
     const currentPlan = planDetails[currentUser.currentPlan as keyof typeof planDetails] as Plan;
     const isStripeConnected = userSettings.integrations.stripe === 'Connected';
     
@@ -99,19 +112,19 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, userSettings, onSettin
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <SettingsCard 
             title="Profile"
-            footer={<button className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75">Save Changes</button>}
+            footer={<button onClick={handleSaveChanges} className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75">Save Changes</button>}
           >
               <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
-                  <input type="text" id="name" defaultValue={currentUser.name} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" />
+                  <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" />
               </div>
               <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
-                  <input type="email" id="email" defaultValue={currentUser.email} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" />
+                  <input type="email" id="email" value={currentUser.email} readOnly className="mt-1 block w-full px-3 py-2 bg-gray-100 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 cursor-not-allowed" />
               </div>
               <div>
                   <label htmlFor="company" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Company Name</label>
-                  <input type="text" id="company" defaultValue={currentUser.company_name} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" />
+                  <input type="text" id="company" value={companyName} onChange={e => setCompanyName(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" />
               </div>
           </SettingsCard>
 

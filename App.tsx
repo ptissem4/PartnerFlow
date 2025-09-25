@@ -80,6 +80,7 @@ const App: React.FC = () => {
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [isFinalizingAccount, setIsFinalizingAccount] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true); // Start true on initial load
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const [activePage, setActivePage] = useState<Page>('Dashboard');
   const [adminActivePage, setAdminActivePage] = useState<AdminPage>('AdminDashboard');
@@ -111,7 +112,6 @@ const App: React.FC = () => {
   }
 
   const loadUserAndData = async (session: Session) => {
-    if (isDataLoading && currentUser) return; // Prevent re-entry if already loading for a user
     setIsDataLoading(true);
 
     try {
@@ -125,7 +125,6 @@ const App: React.FC = () => {
             setIsFinalizingAccount(true);
         }
 
-        // Resilient retry loop: keeps trying for 30s unless it gets data. Ignores transient errors.
         for (let i = 0; i < maxRetries; i++) {
             const { data, error } = await supabase
                 .from('profiles')
@@ -135,8 +134,8 @@ const App: React.FC = () => {
 
             if (data) {
                 profile = data as User;
-                fetchError = null; // Clear previous transient errors
-                break; // Success!
+                fetchError = null;
+                break;
             }
             
             fetchError = error;
@@ -151,15 +150,36 @@ const App: React.FC = () => {
 
       if (fetchError || !profile) {
           console.error("Fatal error fetching profile after retries:", fetchError);
-          showToast("Could not load your profile data. Please refresh the page or contact support.");
-          // By not changing state here, we keep the user on the loading screen instead of logging them out.
-          // This prevents the user from being kicked out due to a temporary issue.
+          showToast("Could not load your profile. Please try logging in again.");
+          await handleSupabaseLogout();
           return;
       }
   
       let userToSet = profile as User;
 
-      // Handle trial logic for new creators
+      // FIX: Ensure user.roles is an array. A new user might have a null `roles` field 
+      // if the database trigger for profile creation hasn't set a default yet.
+      if (!userToSet.roles) {
+          const defaultRoles: UserRole[] = ['creator'];
+          // Attempt to fix the data in the database
+          const { data: updatedProfile, error: updateError } = await supabase
+              .from('profiles')
+              .update({ roles: defaultRoles })
+              .eq('id', userToSet.id)
+              .select()
+              .single();
+          
+          if (updateError) {
+              console.error("Failed to set default user role in DB:", updateError);
+              // Fallback to setting it locally for the current session to proceed
+              userToSet.roles = defaultRoles;
+          } else {
+              // Use the updated profile with the roles set
+              userToSet = updatedProfile as User;
+          }
+      }
+
+
       if (userToSet.roles.includes('creator') && !userToSet.trialEndsAt && !userToSet.currentPlan) {
         const trialEndDate = new Date();
         trialEndDate.setDate(trialEndDate.getDate() + 14);
@@ -172,7 +192,6 @@ const App: React.FC = () => {
         else userToSet = updatedProfile as User;
       }
 
-      // Grant admin role if email matches
       const adminEmails = ['admin@partnerflow.app', 'ptissem4@hotmail.com'];
       if (adminEmails.includes(userToSet.email) && !userToSet.roles.includes('super_admin')) {
           const { data: updatedProfile, error: updateError } = await supabase
@@ -193,42 +212,35 @@ const App: React.FC = () => {
         console.error("A critical error occurred during the login process:", e);
         showToast("An unexpected error occurred. Logging out for safety.");
         await handleSupabaseLogout();
-        setAuthStatus('LOGGED_OUT');
     } finally {
-        // Only set loading to false if we are not in a finalization state
-        if (!isFinalizingAccount) {
-            setIsDataLoading(false);
-        }
+        setIsDataLoading(false);
     }
   };
   
-  // Centralized effect for auth state changes
   useEffect(() => {
-    // Check for session on initial load
-    supabase.auth.getSession().then(({ data: { session } }) => {
-        setSession(session);
-        if (!session) {
-            setIsDataLoading(false);
-            setAuthStatus('LOGGED_OUT');
-        }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
     });
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
+    // Check initial session
+     supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) {
-            setIsDataLoading(false);
-            setAuthStatus('LOGGED_OUT');
+             setIsDataLoading(false);
+             setAuthStatus('LOGGED_OUT');
         }
+        setSession(session);
     });
+
     return () => subscription.unsubscribe();
   }, []);
 
-  // Effect to react to session changes
   useEffect(() => {
-    if (session && !currentUser) {
-        loadUserAndData(session);
-    } 
-    else if (!session) {
+    if (session && !currentUser && !isAuthenticating) {
+      setIsAuthenticating(true);
+      loadUserAndData(session).finally(() => {
+        setIsAuthenticating(false);
+      });
+    } else if (!session) {
         // Reset state on logout
         setCurrentUser(null);
         setUserSettings(null);
@@ -241,12 +253,14 @@ const App: React.FC = () => {
         setActivePage('Dashboard');
         setAdminActivePage('AdminDashboard');
         setActiveView('creator');
-        if (!['admin_login', 'signup', 'partnerflow_affiliate_signup'].includes(appView)) {
+        // Reset to landing page on logout, unless on a specific public page
+        if (!['admin_login', 'signup', 'register', 'partnerflow_affiliate_signup'].includes(appView)) {
             setAppView('landing');
         }
         setAuthStatus('LOGGED_OUT');
+        setIsDataLoading(false);
     }
-  }, [session]);
+  }, [session, currentUser, isAuthenticating]);
 
 
   const fetchData = async (currentUser: User) => {
@@ -275,7 +289,30 @@ const App: React.FC = () => {
         setUsers(clientsData as User[] || []);
         
         const { data: allUsersData } = await supabase.from('profiles').select('*');
-        setAllUsers(allUsersData as User[] || []);
+        const allUsersFromDB = allUsersData as User[] || [];
+
+        // Fetch all partnerships to populate partnerIds for affiliates, which is needed for client management affiliate counts.
+        const { data: allPartnerships } = await supabase.from('partnerships').select('creator_id, affiliate_id');
+
+        if (allPartnerships) {
+            const affiliateToPartnersMap = new Map<string, string[]>();
+            allPartnerships.forEach((p: { creator_id: string; affiliate_id: string; }) => {
+                if (!affiliateToPartnersMap.has(p.affiliate_id)) {
+                    affiliateToPartnersMap.set(p.affiliate_id, []);
+                }
+                affiliateToPartnersMap.get(p.affiliate_id)!.push(p.creator_id);
+            });
+
+            const usersWithPartners = allUsersFromDB.map(user => {
+                if (user.roles.includes('affiliate')) {
+                    return { ...user, partnerIds: affiliateToPartnersMap.get(user.id) || [] };
+                }
+                return user;
+            });
+            setAllUsers(usersWithPartners);
+        } else {
+            setAllUsers(allUsersFromDB);
+        }
 
         const { data: allProductsData } = await supabase.from('products').select('*');
         setProducts(allProductsData as Product[] || []);
@@ -394,11 +431,36 @@ const App: React.FC = () => {
 
   const handleUserSettingsChange = async (newSettings: UserSettings) => {
     if (!currentUser || !userSettings) return;
-    const { error } = await supabase.from('user_settings').update(newSettings).eq('user_id', currentUser.id);
-    if(error) {
+
+    // Prevent email changes from this form, as it requires a separate auth flow.
+    if (newSettings.email !== currentUser.email) {
+        showToast("Email address cannot be changed from settings.");
+        newSettings.email = currentUser.email; // Revert to original
+    }
+
+    // Update settings table
+    const { error: settingsError } = await supabase
+        .from('user_settings')
+        .update(newSettings)
+        .eq('user_id', currentUser.id);
+
+    // Update profiles table
+    const { data: updatedProfile, error: profileError } = await supabase
+        .from('profiles')
+        .update({ name: newSettings.name, company_name: newSettings.company_name })
+        .eq('id', currentUser.id)
+        .select()
+        .single();
+
+    if (settingsError || profileError) {
         showToast("Error updating settings.");
+        console.error("Settings update error:", settingsError || profileError);
     } else {
         setUserSettings(newSettings);
+        if (updatedProfile) {
+            // Preserve properties on currentUser that are not on the profiles table
+            setCurrentUser(prevUser => ({ ...prevUser, ...updatedProfile as User }));
+        }
         showToast("Settings updated successfully!");
     }
   };
