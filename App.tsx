@@ -115,53 +115,58 @@ const App: React.FC = () => {
     setIsDataLoading(true);
 
     try {
+        const createdAt = new Date(session.user.created_at).getTime();
+        const lastSignInAt = session.user.last_sign_in_at ? new Date(session.user.last_sign_in_at).getTime() : createdAt;
+        const isNewUserSignUp = (lastSignInAt - createdAt) < 5000; // Heuristic: sign-in within 5s of creation is a new signup
+
         let profile: User | null = null;
         let fetchError: any = null;
-        const maxRetries = 30; // 30 seconds
-        const retryDelay = 1000; // 1 second
 
-        const { data: initialCheck } = await supabase.from('profiles').select('id').eq('id', session.user.id).single();
-        if (!initialCheck) {
+        if (isNewUserSignUp) {
+            // New user: Wait up to 30s for the profile trigger to run.
             setIsFinalizingAccount(true);
-        }
-
-        for (let i = 0; i < maxRetries; i++) {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-
-            if (data) {
-                profile = data as User;
-                fetchError = null;
-                break;
+            const maxRetries = 30;
+            const retryDelay = 1000;
+            for (let i = 0; i < maxRetries; i++) {
+                const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+                if (data) {
+                    profile = data as User;
+                    fetchError = null;
+                    break;
+                }
+                fetchError = error;
+                if (i < maxRetries - 1) await new Promise(resolve => setTimeout(resolve, retryDelay));
             }
-            
-            fetchError = error;
-            console.warn(`Profile fetch attempt ${i + 1} failed. Retrying...`, error?.message);
-
-            if (i < maxRetries - 1) {
-                await new Promise(resolve => setTimeout(resolve, retryDelay));
+        } else {
+            // Existing user: Try a few times for network resilience, but fail faster.
+            const maxRetries = 3;
+            const retryDelay = 1000;
+            for (let i = 0; i < maxRetries; i++) {
+                const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+                if (data) {
+                    profile = data as User;
+                    fetchError = null;
+                    break;
+                }
+                fetchError = error;
+                if (i < maxRetries - 1) await new Promise(resolve => setTimeout(resolve, retryDelay));
             }
         }
-      
-      setIsFinalizingAccount(false);
 
       if (fetchError || !profile) {
           console.error("Fatal error fetching profile after retries:", fetchError);
-          showToast("Could not load your profile. Please try logging in again.");
+          const errorMessage = isNewUserSignUp
+              ? "There was a problem finalizing your account setup. Please contact support."
+              : "Could not load your user data. Please check your connection and try again.";
+          showToast(errorMessage);
           await handleSupabaseLogout();
           return;
       }
   
       let userToSet = profile as User;
-
-      // FIX: Ensure user.roles is an array. A new user might have a null `roles` field 
-      // if the database trigger for profile creation hasn't set a default yet.
+      
       if (!userToSet.roles) {
           const defaultRoles: UserRole[] = ['creator'];
-          // Attempt to fix the data in the database
           const { data: updatedProfile, error: updateError } = await supabase
               .from('profiles')
               .update({ roles: defaultRoles })
@@ -171,14 +176,11 @@ const App: React.FC = () => {
           
           if (updateError) {
               console.error("Failed to set default user role in DB:", updateError);
-              // Fallback to setting it locally for the current session to proceed
               userToSet.roles = defaultRoles;
           } else {
-              // Use the updated profile with the roles set
               userToSet = updatedProfile as User;
           }
       }
-
 
       if (userToSet.roles.includes('creator') && !userToSet.trialEndsAt && !userToSet.currentPlan) {
         const trialEndDate = new Date();
@@ -214,6 +216,7 @@ const App: React.FC = () => {
         await handleSupabaseLogout();
     } finally {
         setIsDataLoading(false);
+        setIsFinalizingAccount(false);
     }
   };
   
