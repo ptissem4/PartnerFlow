@@ -1,3 +1,6 @@
+// FIX: Add Vite client types to resolve `import.meta.env` error.
+/// <reference types="vite/client" />
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
@@ -825,7 +828,6 @@ const App: React.FC = () => {
                 onAddProduct={handleOnboardingAddProduct}
                 onInviteAffiliate={handleOnboardingInviteAffiliate}
                 onComplete={handleOnboardingComplete}
-                // FIX: Corrected typo from handleOnboardingSkip to handleSkipOnboarding.
                 onSkip={handleSkipOnboarding}
             />}
         </div>
