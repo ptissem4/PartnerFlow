@@ -333,10 +333,12 @@ const App: React.FC = () => {
             .eq('creator_id', currentUser.id);
 
         if (partnerships) {
-            const affiliatesWithStatus = partnerships.map((p: any) => ({
-                ...p.profiles,
-                status: p.status,
-            }));
+            const affiliatesWithStatus = partnerships
+                .filter((p: any) => p.profiles) // FIX: Filter out partnerships with null profiles
+                .map((p: any) => ({
+                    ...p.profiles,
+                    status: p.status,
+                }));
             setUsers(affiliatesWithStatus as User[]);
             
             const affiliateIds = affiliatesWithStatus.map((a: User) => a.id);
@@ -361,7 +363,9 @@ const App: React.FC = () => {
         const { data: partnerships } = await supabase.from('partnerships').select('profiles:creator_id (*)').eq('affiliate_id', currentUser.id);
 
         if (partnerships) {
-            const partners = partnerships.map((p: any) => p.profiles);
+            const partners = partnerships
+                .filter((p: any) => p.profiles) // FIX: Filter out partnerships with null profiles
+                .map((p: any) => p.profiles);
             setUsers(partners as User[]);
 
             const partnerIds = partners.map((p: User) => p.id);
