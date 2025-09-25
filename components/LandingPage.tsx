@@ -79,33 +79,41 @@ const FaqItem: React.FC<{ question: string; children: React.ReactNode }> = ({ qu
     );
 };
 
+const DashboardIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>;
+const UsersIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.653-.122-1.28-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.653.122-1.28.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
+const ChartBarIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>;
+
+
 const features = [
     {
         id: 'dashboard',
-        title: 'Centralized Dashboard',
-        description: 'Track clicks, sales, and commissions in real-time with a clear and concise overview. Identify your top-performing affiliates and optimize your campaigns for maximum impact.',
-        imageUrl: 'https://i.imgur.com/4a0x2fA.png'
+        title: 'Your Mission Control',
+        description: 'Get a bird\'s-eye view of your entire affiliate program. Track clicks, sales, and commissions in real-time with a clear, concise, and actionable dashboard.',
+        imageUrl: 'https://i.imgur.com/5zV8V18.png',
+        icon: <DashboardIcon />
     },
     {
-        id: 'payouts',
-        title: 'Automated Mass Payouts',
-        description: 'Connect your Stripe account and pay all your affiliates with a single click. Our system automatically calculates due commissions, saving you time and eliminating payment errors.',
-        imageUrl: 'https://i.imgur.com/O6m7V8b.png'
+        id: 'affiliates',
+        title: 'Powerful Affiliate Management',
+        description: 'Effortlessly manage your partners. Invite new affiliates with a unique link, approve applications, and track individual performance.',
+        imageUrl: 'https://i.imgur.com/OQSv5xN.png',
+        icon: <UsersIcon />
     },
     {
-        id: 'portal',
-        title: 'Professional Affiliate Portal',
-        description: 'Provide your partners with a branded space to track their performance, access their unique links, and download promotional materials. A professional portal motivates and equips your affiliates for success.',
-        imageUrl: 'https://i.imgur.com/w9r33zQ.png'
+        id: 'reports',
+        title: 'Insightful, Actionable Reports',
+        description: 'Dive deep into your data. Understand which products and partners are driving the most growth and make data-driven decisions to scale your program.',
+        imageUrl: 'https://i.imgur.com/pYVv8aM.png',
+        icon: <ChartBarIcon />
     }
 ];
 
 const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogin, onNavigateToRegister, onNavigateToDashboard, onNavigateToPartnerflowSignup }) => {
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
-    const [activeFeature, setActiveFeature] = useState(features[0].id);
     const [newsletterEmail, setNewsletterEmail] = useState('');
     const [newsletterError, setNewsletterError] = useState('');
     const [isSubscribed, setIsSubscribed] = useState(false);
+    const [activeFeature, setActiveFeature] = useState('dashboard');
     const plans = Object.values(planDetails);
     
     const currentFeature = features.find(f => f.id === activeFeature) || features[0];
@@ -139,7 +147,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogi
                     </a>
                     <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600 dark:text-gray-300">
                         <a href="#features" className="hover:text-cyan-500 transition-colors">Features</a>
-                        <a href="#demo" className="hover:text-cyan-500 transition-colors">Demo</a>
                         <a href="#pricing" className="hover:text-cyan-500 transition-colors">Pricing</a>
                         <a href="#faq" className="hover:text-cyan-500 transition-colors">FAQ</a>
                     </nav>
@@ -161,93 +168,80 @@ const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogi
             </header>
 
             <main>
-                <section className="relative text-center py-24 md:py-32 px-6 bg-white dark:bg-gray-900">
+                <section className="relative text-center pt-24 pb-16 md:pt-32 md:pb-20 px-6 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800">
                      <div className="absolute inset-0 bg-grid-gray-200/50 dark:bg-grid-gray-700/20 [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]"></div>
-                    <div className="relative z-10">
+                    <div className="relative z-10 container mx-auto">
                         <FadeIn>
                             <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-white mb-6 leading-tight">
-                                Your Affiliate Program on <span className="bg-gradient-to-r from-cyan-500 to-teal-400 text-transparent bg-clip-text">Autopilot</span>.
+                                Your Affiliate Program on <span className="bg-gradient-to-r from-cyan-400 to-teal-400 text-transparent bg-clip-text">Autopilot</span>.
                             </h1>
                             <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-10">
                                 Stop drowning in spreadsheets. PartnerFlow is the all-in-one platform for creators to launch, manage, and scale their affiliate programs with ease.
                             </p>
-                            <button onClick={onNavigateToRegister} className="px-8 py-4 bg-cyan-500 text-white font-bold rounded-lg shadow-xl hover:bg-cyan-600 transform hover:scale-105 transition-transform duration-300">
-                                Start Your 14-Day Free Trial &rarr;
-                            </button>
+                            <div className="flex justify-center items-center gap-4">
+                                <button onClick={onNavigateToRegister} className="px-8 py-4 bg-cyan-500 text-white font-bold rounded-lg shadow-xl hover:bg-cyan-600 transform hover:scale-105 transition-transform duration-300">
+                                    Start Your 14-Day Free Trial &rarr;
+                                </button>
+                            </div>
+                        </FadeIn>
+
+                        <FadeIn className="mt-20 max-w-5xl mx-auto">
+                            <div className="relative mx-auto border-gray-800 dark:border-gray-800 bg-gray-800 border-[8px] rounded-t-xl h-[172px] max-w-[301px] md:h-[294px] md:max-w-[512px]">
+                                <div className="rounded-lg overflow-hidden h-[156px] md:h-[278px] bg-white dark:bg-gray-800">
+                                    <img src="https://i.imgur.com/5zV8V18.png" className="h-[156px] md:h-[278px] w-full object-cover object-left-top" alt="PartnerFlow Dashboard Screenshot" />
+                                </div>
+                            </div>
+                            <div className="relative mx-auto bg-gray-900 dark:bg-gray-700 rounded-b-xl h-[24px] max-w-[301px] md:h-[42px] md:max-w-[512px]">
+                                <div className="absolute left-1/2 top-0 -translate-x-1/2 rounded-b-xl w-[56px] h-[5px] md:w-[96px] md:h-[8px] bg-gray-800"></div>
+                            </div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-8">Trusted by leading creators and coaches</p>
                         </FadeIn>
                     </div>
                 </section>
-                
-                <section id="demo" className="py-24 px-6 bg-gray-50 dark:bg-gray-800">
-                    <FadeIn className="container mx-auto text-center">
-                        <h2 className="text-4xl font-bold mb-4">See Our Product in Action</h2>
-                        <p className="text-gray-600 dark:text-gray-400 mb-12 max-w-2xl mx-auto">
-                           Explore the clean and powerful interface that will help you manage and grow your affiliate program.
-                        </p>
-
-                        <div className="flex justify-center items-center gap-4 mb-8 border-b border-gray-200 dark:border-gray-700">
-                            {features.map(feature => (
-                                <button 
-                                    key={feature.id}
-                                    onClick={() => setActiveFeature(feature.id)}
-                                    className={`px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${activeFeature === feature.id ? 'border-cyan-500 text-cyan-500' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-white'}`}
-                                >
-                                    {feature.title}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center text-left">
-                            <div className="relative">
-                               <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-lg blur-xl opacity-25"></div>
-                               <div className="relative bg-white dark:bg-gray-800 p-2 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700">
-                                   <img src={currentFeature.imageUrl} alt={currentFeature.title} className="rounded-md w-full h-auto transition-all duration-500" key={currentFeature.id} />
-                               </div>
-                            </div>
-                            <div className="transition-opacity duration-500" key={currentFeature.id + '-text'}>
-                                <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">{currentFeature.title}</h3>
-                                <p className="text-gray-600 dark:text-gray-400">{currentFeature.description}</p>
-                            </div>
-                        </div>
-
-                    </FadeIn>
-                </section>
 
                 <section id="features" className="py-24 px-6 bg-white dark:bg-gray-900">
-                    <FadeIn className="container mx-auto text-center">
-                        <h2 className="text-4xl font-bold mb-4">Everything You Need to Scale Your Partnerships</h2>
-                        <p className="text-gray-600 dark:text-gray-400 mb-12 max-w-2xl mx-auto">
-                           From seamless onboarding to automated payouts, PartnerFlow provides the tools you need to build a thriving affiliate program.
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
-                            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                <h3 className="text-lg font-semibold mb-2">One-Click Affiliate Onboarding</h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Share a simple link to let affiliates join your program. Approve new partners and get them promoting in minutes.</p>
+                    <FadeIn className="container mx-auto">
+                        <div className="text-center max-w-3xl mx-auto mb-16">
+                            <h2 className="text-4xl font-bold">Everything you need. Nothing you don't.</h2>
+                            <p className="text-lg text-gray-600 dark:text-gray-400 mt-4">PartnerFlow is packed with powerful features designed to save you time and help you grow your affiliate revenue.</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
+                            <div className="lg:col-span-1 space-y-4">
+                                {features.map(feature => (
+                                    <button
+                                        key={feature.id}
+                                        onClick={() => setActiveFeature(feature.id)}
+                                        className={`w-full text-left p-6 rounded-lg transition-all duration-300 ${activeFeature === feature.id ? 'bg-cyan-50 dark:bg-cyan-900/20 ring-2 ring-cyan-500 shadow-lg' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
+                                    >
+                                        <div className="flex items-center">
+                                            <div className={`p-2 rounded-md mr-4 ${activeFeature === feature.id ? 'text-cyan-600' : 'text-gray-500'}`}>
+                                                {feature.icon}
+                                            </div>
+                                            <h3 className="text-lg font-semibold">{feature.title}</h3>
+                                        </div>
+                                        {activeFeature === feature.id && (
+                                            <p className="text-gray-600 dark:text-gray-400 mt-2 pl-12 text-sm">{feature.description}</p>
+                                        )}
+                                    </button>
+                                ))}
                             </div>
-                            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                <h3 className="text-lg font-semibold mb-2">Real-time Analytics</h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Track clicks, sales, and commissions with an easy-to-understand dashboard. Identify your top performers and optimize your strategy.</p>
-                            </div>
-                            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                <h3 className="text-lg font-semibold mb-2">Secure Mass Payouts</h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Connect your Stripe account and pay all your affiliates at once. No more manual transfers or payment errors.</p>
-                            </div>
-                             <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                <h3 className="text-lg font-semibold mb-2">Customizable Commission Tiers</h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Incentivize top performance by setting up tiered commission rates that reward affiliates for reaching sales goals.</p>
-                            </div>
-                            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                <h3 className="text-lg font-semibold mb-2">Professional Affiliate Portal</h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Give your partners a branded portal to track their performance, find their links, and access marketing materials.</p>
-                            </div>
-                             <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                <h3 className="text-lg font-semibold mb-2">Simple Tracking Pixel</h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">Our platform-agnostic tracking code is easy to install on any website or checkout page, ensuring accurate sales attribution.</p>
+                            <div className="lg:col-span-2 sticky top-24">
+                                <div className="relative">
+                                    <div className="absolute -inset-4 bg-gradient-to-r from-cyan-400 to-teal-400 rounded-lg blur-2xl opacity-20 dark:opacity-30"></div>
+                                    <div className="relative bg-white dark:bg-gray-800 p-2 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700">
+                                        {features.map(feature => (
+                                            <img
+                                                key={feature.id}
+                                                src={feature.imageUrl}
+                                                alt={feature.title}
+                                                className={`rounded-md w-full h-auto transition-opacity duration-500 ${activeFeature === feature.id ? 'opacity-100' : 'opacity-0 absolute top-0 left-0'}`}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                         <button onClick={onNavigateToRegister} className="mt-12 px-8 py-3 bg-cyan-500 text-white font-bold rounded-lg shadow-lg hover:bg-cyan-600 transform hover:scale-105 transition-transform duration-300">
-                            Start Automating Now
-                        </button>
                     </FadeIn>
                 </section>
                 
@@ -270,7 +264,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogi
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
                           {plans.map((plan) => (
-                            <div key={plan.name} className={`p-8 bg-white dark:bg-gray-900 rounded-lg shadow-lg flex flex-col ${plan.name === 'Growth Plan' ? 'border-2 border-cyan-500 relative shadow-[0_0_20px_theme(colors.cyan.500/0.5)]' : 'border border-gray-200 dark:border-gray-700'}`}>
+                            <div key={plan.name} className={`p-8 bg-white dark:bg-gray-900 rounded-lg shadow-lg flex flex-col transition transform hover:scale-[1.02] ${plan.name === 'Growth Plan' ? 'ring-2 ring-cyan-500 relative shadow-[0_0_20px_theme(colors.cyan.500/0.5)]' : 'border border-gray-200 dark:border-gray-700'}`}>
                               {plan.name === 'Growth Plan' && <div className="absolute top-0 -translate-y-1/2 bg-cyan-500 text-white text-sm font-semibold px-4 py-1 rounded-full shadow-lg self-center">Most Popular</div>}
                               <h3 className="text-2xl font-semibold mb-2">{plan.name}</h3>
                                <p className="mb-6 h-16 text-gray-600 dark:text-gray-400">
@@ -300,35 +294,35 @@ const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogi
                                         </tr>
                                     </thead>
                                     <tbody className="text-gray-600 dark:text-gray-400">
-                                        <tr className="border-b border-gray-200 dark:border-gray-700"><td colSpan={4} className="py-3 px-2 font-bold text-gray-800 dark:text-white">Core Features</td></tr>
-                                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                                        <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50"><td colSpan={4} className="py-3 px-2 font-bold text-gray-800 dark:text-white">Core Features</td></tr>
+                                        <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
                                             <td className="py-3 px-2">Affiliate Limit</td>
                                             {plans.map(p => <td key={p.name} className="py-3 px-2 text-center font-medium text-gray-800 dark:text-white">{p.limits.affiliates}</td>)}
                                         </tr>
-                                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                                        <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
                                             <td className="py-3 px-2">Product Limit</td>
                                             {plans.map(p => <td key={p.name} className="py-3 px-2 text-center font-medium text-gray-800 dark:text-white">{p.limits.products}</td>)}
                                         </tr>
-                                         <tr className="border-b border-gray-200 dark:border-gray-700">
+                                         <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
                                             <td className="py-3 px-2">Affiliate Portal</td>
                                             {plans.map(p => <td key={p.name} className="py-3 px-2 text-center">{p.features.hasAffiliatePortal ? <CheckIcon className="h-5 w-5 text-green-500 mx-auto" /> : <XIcon />}</td>)}
                                         </tr>
-                                         <tr className="border-b border-gray-200 dark:border-gray-700">
+                                         <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
                                             <td className="py-3 px-2">Automated Payouts (Stripe)</td>
                                             <td className="py-3 px-2 text-center"><CheckIcon className="h-5 w-5 text-green-500 mx-auto" /></td>
                                             <td className="py-3 px-2 text-center"><CheckIcon className="h-5 w-5 text-green-500 mx-auto" /></td>
                                             <td className="py-3 px-2 text-center"><CheckIcon className="h-5 w-5 text-green-500 mx-auto" /></td>
                                         </tr>
-                                        <tr className="border-b border-gray-200 dark:border-gray-700"><td colSpan={4} className="py-3 px-2 font-bold text-gray-800 dark:text-white mt-4">Advanced Features</td></tr>
-                                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                                        <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50"><td colSpan={4} className="py-3 px-2 font-bold text-gray-800 dark:text-white mt-4">Advanced Features</td></tr>
+                                        <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
                                             <td className="py-3 px-2">Tiered Commissions & Bonuses</td>
                                             {plans.map(p => <td key={p.name} className="py-3 px-2 text-center">{p.features.hasTieredCommissions ? <CheckIcon className="h-5 w-5 text-green-500 mx-auto" /> : <XIcon />}</td>)}
                                         </tr>
-                                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                                        <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
                                             <td className="py-3 px-2">API Access</td>
                                             {plans.map(p => <td key={p.name} className="py-3 px-2 text-center">{p.features.hasApiAccess ? <CheckIcon className="h-5 w-5 text-green-500 mx-auto" /> : <XIcon />}</td>)}
                                         </tr>
-                                         <tr className="border-b border-gray-200 dark:border-gray-700">
+                                         <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
                                             <td className="py-3 px-2">Priority Support</td>
                                             {plans.map(p => <td key={p.name} className="py-3 px-2 text-center">{p.features.prioritySupport ? <CheckIcon className="h-5 w-5 text-green-500 mx-auto" /> : <XIcon />}</td>)}
                                         </tr>

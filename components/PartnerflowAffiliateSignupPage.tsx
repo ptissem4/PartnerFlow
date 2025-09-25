@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 interface PartnerflowAffiliateSignupPageProps {
-  onSignup: (name: string, email: string) => Promise<{ success: boolean; error?: string }>;
+  onSignup: (name: string, email: string) => void;
   onBack: () => void;
 }
 
@@ -12,7 +12,7 @@ const PartnerflowAffiliateSignupPage: React.FC<PartnerflowAffiliateSignupPagePro
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email) {
         setError("Name and email are required.");
@@ -28,15 +28,11 @@ const PartnerflowAffiliateSignupPage: React.FC<PartnerflowAffiliateSignupPagePro
     setError(null);
     setIsLoading(true);
 
-    const result = await onSignup(name, email);
-
-    if (result.success) {
+    setTimeout(() => {
+      onSignup(name, email);
+      setIsLoading(false);
       setIsSuccess(true);
-    } else {
-      setError(result.error || "An unknown error occurred.");
-    }
-    
-    setIsLoading(false);
+    }, 1000);
   };
   
   if (isSuccess) {
