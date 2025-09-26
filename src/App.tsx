@@ -1,6 +1,4 @@
 
-// FIX: Removed reference to 'vite/client' which was causing a type definition error.
-// The project seems to be configured to use process.env instead of import.meta.env.
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
@@ -433,15 +431,15 @@ const App: React.FC = () => {
     }
     
     if (user) {
-        // FIX: Replaced import.meta.env with process.env to align with project conventions and fix TypeScript errors.
-        const supabaseUrl = process.env.VITE_SUPABASE_URL;
+        // FIX: Cast import.meta to any to avoid TypeScript errors when vite/client types are not available.
+        const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
         if (!supabaseUrl) {
             console.error("Supabase URL is missing. Please set the VITE_SUPABASE_URL environment variable.");
             return { success: false, error: "Application configuration error: Missing Supabase URL." };
         }
 
-        // FIX: Replaced import.meta.env with process.env to align with project conventions and fix TypeScript errors.
-        const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+        // FIX: Cast import.meta to any to avoid TypeScript errors when vite/client types are not available.
+        const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
         if (!supabaseAnonKey) {
             console.error("Supabase anonymous key is missing. Please set the VITE_SUPABASE_ANON_KEY environment variable.");
             return { success: false, error: "Application configuration error: Missing Supabase anonymous key." };
