@@ -1,12 +1,14 @@
 
 import React, { useState, useMemo } from 'react';
 import { User, Payout } from '../data/mockData';
-import { Plan } from '../App';
+// FIX: Corrected path to import from `src/App.tsx`.
+import { Plan } from '../src/App';
 import AffiliateDetail from './AffiliateDetail';
 import AddAffiliateModal from './AddAffiliateModal';
 import ConfirmationModal from './ConfirmationModal';
 import InviteAffiliateModal from './InviteAffiliateModal';
-import { supabase } from '../lib/supabaseClient';
+// FIX: Corrected path to import from `src/lib/supabaseClient.ts`.
+import { supabase } from '../src/lib/supabaseClient';
 
 interface AffiliatesProps {
     affiliates: User[];

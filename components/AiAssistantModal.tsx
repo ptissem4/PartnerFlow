@@ -53,12 +53,9 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ onClose, onApplyTex
         I'm thrilled to announce...`;
 
         try {
-            // FIX: Use process.env.API_KEY as per Gemini coding guidelines.
-            if (!process.env.API_KEY) {
-                setError('API Key is missing. Please configure it in your environment variables.');
-                setIsLoading(false);
-                return;
-            }
+            // FIX: Correctly initialize GoogleGenAI client with API key from environment variables as per guidelines.
+            // Vite exposes env variables via import.meta.env, and we map it to process.env.API_KEY as per the guidelines.
+            process.env.API_KEY = import.meta.env.VITE_API_KEY;
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',

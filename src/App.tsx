@@ -3,32 +3,32 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
-import Sidebar from './components/Sidebar';
-import Header from './components/Header';
-import Dashboard from './components/Dashboard';
-import Affiliates from './components/Affiliates';
-import Payouts from './components/Payouts';
-import Settings from './components/Settings';
-import AffiliatePortal from './components/AffiliatePortal';
-import Products from './components/Products';
-import Toast from './components/Toast';
-import Reports from './components/Reports';
-import LandingPage from './components/LandingPage';
-import LoginPage from './components/LoginPage';
-import RegistrationPage from './components/RegistrationPage';
-import AffiliateSignupPage from './components/AffiliateSignupPage';
-import PartnerflowAffiliateSignupPage from './components/PartnerflowAffiliateSignupPage';
-import PartnerflowAffiliates from './components/PartnerflowAffiliates';
-import Billing from './components/Billing';
-import SuperAdminDashboard from './components/SuperAdminDashboard';
-import ClientManagement from './components/ClientManagement';
-import PlatformSettings from './components/PlatformSettings';
-import SuperAdminAnalytics from './components/SuperAdminAnalytics';
-import StripeConnectPage from './components/StripeConnectPage';
-import OnboardingModal from './components/OnboardingModal';
-import Communicate from './components/Communicate';
-import NotFoundPage from './components/NotFoundPage';
-import LoadingSpinner from './components/LoadingSpinner';
+import Sidebar from '../components/Sidebar';
+import Header from '../components/Header';
+import Dashboard from '../components/Dashboard';
+import Affiliates from '../components/Affiliates';
+import Payouts from '../components/Payouts';
+import Settings from '../components/Settings';
+import AffiliatePortal from '../components/AffiliatePortal';
+import Products from '../components/Products';
+import Toast from '../components/Toast';
+import Reports from '../components/Reports';
+import LandingPage from '../components/LandingPage';
+import LoginPage from '../components/LoginPage';
+import RegistrationPage from '../components/RegistrationPage';
+import AffiliateSignupPage from '../components/AffiliateSignupPage';
+import PartnerflowAffiliateSignupPage from '../components/PartnerflowAffiliateSignupPage';
+import PartnerflowAffiliates from '../components/PartnerflowAffiliates';
+import Billing from '../components/Billing';
+import SuperAdminDashboard from '../components/SuperAdminDashboard';
+import ClientManagement from '../components/ClientManagement';
+import PlatformSettings from '../components/PlatformSettings';
+import SuperAdminAnalytics from '../components/SuperAdminAnalytics';
+import StripeConnectPage from '../components/StripeConnectPage';
+import OnboardingModal from '../components/OnboardingModal';
+import Communicate from '../components/Communicate';
+import NotFoundPage from '../components/NotFoundPage';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { 
     planDetails as initialPlanDetails,
     platformSettings as initialPlatformSettings,
@@ -42,7 +42,7 @@ import {
     UserSettings,
     UserRole,
     CommissionTier
-} from './data/mockData';
+} from '../data/mockData';
 
 
 export type Page = 'Dashboard' | 'Affiliates' | 'Products' | 'Payouts' | 'Settings' | 'Reports' | 'Billing' | 'Communicate';
@@ -431,15 +431,13 @@ const App: React.FC = () => {
     }
     
     if (user) {
-        // FIX: Cast import.meta to any to avoid TypeScript errors when vite/client types are not available.
-        const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+        const supabaseUrl = process.env.VITE_SUPABASE_URL;
         if (!supabaseUrl) {
             console.error("Supabase URL is missing. Please set the VITE_SUPABASE_URL environment variable.");
             return { success: false, error: "Application configuration error: Missing Supabase URL." };
         }
 
-        // FIX: Cast import.meta to any to avoid TypeScript errors when vite/client types are not available.
-        const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+        const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
         if (!supabaseAnonKey) {
             console.error("Supabase anonymous key is missing. Please set the VITE_SUPABASE_ANON_KEY environment variable.");
             return { success: false, error: "Application configuration error: Missing Supabase anonymous key." };

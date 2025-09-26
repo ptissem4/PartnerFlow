@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { Page, AdminPage } from '../App';
+// FIX: Corrected path to import from `src/App.tsx`.
+import { Page, AdminPage } from '../src/App';
 import { User } from '../data/mockData';
 
 interface SidebarProps {

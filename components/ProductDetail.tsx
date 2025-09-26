@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Product, Creative, User } from '../data/mockData';
-import { Plan } from '../App';
+// FIX: Corrected path to import from `src/App.tsx`.
+import { Plan } from '../src/App';
 import AddProductModal from './AddProductModal';
 import AddCreativeModal from './AddCreativeModal';
 import ConfirmationModal from './ConfirmationModal';

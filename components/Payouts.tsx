@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Payout, User, UserSettings } from '../data/mockData';
 import PayoutDetailModal from './PayoutDetailModal';
-import { Page } from '../App';
-import { supabase } from '../lib/supabaseClient';
+// FIX: Corrected path to import from `src/App.tsx`.
+import { Page } from '../src/App';
+// FIX: Corrected path to import from `src/lib/supabaseClient.ts`.
+import { supabase } from '../src/lib/supabaseClient';
 
 interface PayoutsProps {
   payouts: Payout[];

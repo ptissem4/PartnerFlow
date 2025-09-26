@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, Product, planDetails } from '../data/mockData';
-import { Plan } from '../App';
+// FIX: Corrected path to import from `src/App.tsx`.
+import { Plan } from '../src/App';
 
 interface BillingProps {
     currentUser: User;

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, UserSettings, planDetails } from '../data/mockData';
-import { Plan, AppView } from '../App';
+// FIX: Corrected path to import from `src/App.tsx`.
+import { Plan, AppView } from '../src/App';
 import ConfirmationModal from './ConfirmationModal';
 
 

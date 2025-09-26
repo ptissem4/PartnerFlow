@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, CommissionTier, PerformanceBonus, User } from '../data/mockData';
-import { Plan } from '../App';
+// FIX: Corrected path to import from `src/App.tsx`.
+import { Plan } from '../src/App';
 
 interface AddProductModalProps {
   onClose: () => void;

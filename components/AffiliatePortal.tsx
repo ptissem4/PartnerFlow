@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { User, Product, CommissionTier, PerformanceBonus, Creative, Payout, Sale } from '../data/mockData';
-import { supabase } from '../lib/supabaseClient';
+// FIX: Corrected path to import from `src/lib/supabaseClient.ts`.
+import { supabase } from '../src/lib/supabaseClient';
 
 interface AffiliatePortalProps {
   currentUser: User;

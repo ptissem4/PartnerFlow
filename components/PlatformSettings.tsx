@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { PlatformSettings as PlatformSettingsType } from '../data/mockData';
-import { Plan } from '../App';
+// FIX: Corrected path to import from `src/App.tsx`.
+import { Plan } from '../src/App';
 
 interface PlatformSettingsProps {
     platformSettings: PlatformSettingsType;

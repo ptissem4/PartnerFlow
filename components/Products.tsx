@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Product, CommissionTier, User } from '../data/mockData';
-import { Plan } from '../App';
+// FIX: Corrected path to import from `src/App.tsx`.
+import { Plan } from '../src/App';
 import AddProductModal from './AddProductModal';
 import ConfirmationModal from './ConfirmationModal';
 import ProductDetail from './ProductDetail';
-import { supabase } from '../lib/supabaseClient';
+// FIX: Corrected path to import from `src/lib/supabaseClient.ts`.
+import { supabase } from '../src/lib/supabaseClient';
 
 interface ProductsProps {
     products: Product[];
