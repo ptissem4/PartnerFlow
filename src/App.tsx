@@ -1,5 +1,5 @@
-// FIX: Add Vite client types to resolve `import.meta.env` error.
-/// <reference types="vite/client" />
+// FIX: Removed unnecessary `vite/client` type reference which was causing a 'Cannot find type definition file' error.
+// This reference is for `import.meta.env` which is not used in this file.
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
@@ -432,13 +432,13 @@ const App: React.FC = () => {
     }
     
     if (user) {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseUrl = process.env.VITE_SUPABASE_URL;
         if (!supabaseUrl) {
             console.error("Supabase URL is missing. Please set the VITE_SUPABASE_URL environment variable.");
             return { success: false, error: "Application configuration error: Missing Supabase URL." };
         }
 
-        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
         if (!supabaseAnonKey) {
             console.error("Supabase anonymous key is missing. Please set the VITE_SUPABASE_ANON_KEY environment variable.");
             return { success: false, error: "Application configuration error: Missing Supabase anonymous key." };
