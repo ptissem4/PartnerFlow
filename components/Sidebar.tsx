@@ -1,6 +1,6 @@
 
+
 import React from 'react';
-// FIX: Corrected path to import from `src/App.tsx`.
 import { Page, AdminPage } from '../src/App';
 import { User } from '../data/mockData';
 
@@ -15,7 +15,6 @@ interface SidebarProps {
 
 const NavItem: React.FC<{
   page: Page | AdminPage;
-  // FIX: Replaced JSX.Element with React.ReactNode to resolve namespace error.
   icon: React.ReactNode;
   label: string;
   activePage: Page | AdminPage;

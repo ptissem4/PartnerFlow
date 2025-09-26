@@ -1,6 +1,6 @@
 
+
 import React, { useState, useEffect } from 'react';
-// FIX: Corrected path to import from `src/App.tsx`.
 import { Theme, ActiveView } from '../src/App';
 import { User, PlatformSettings } from '../data/mockData';
 

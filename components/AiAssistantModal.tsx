@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { GoogleGenAI } from '@google/genai';
 
@@ -53,18 +52,16 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ onClose, onApplyTex
         I'm thrilled to announce...`;
 
         try {
-            // FIX: Correctly initialize GoogleGenAI client with API key from environment variables as per guidelines.
-            // Vite exposes env variables via import.meta.env, and we map it to process.env.API_KEY as per the guidelines.
-            process.env.API_KEY = import.meta.env.VITE_API_KEY;
+            // FIX: Use process.env.API_KEY directly as per Gemini API guidelines and fix environment variable access.
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
             });
             setGeneratedText(response.text);
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            setError('An error occurred while generating the text. Please try again.');
+            setError(e.message || 'An error occurred while generating the text. Please try again.');
         } finally {
             setIsLoading(false);
         }

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
@@ -431,12 +430,14 @@ const App: React.FC = () => {
     }
     
     if (user) {
+        // FIX: Replace import.meta.env with process.env to access environment variables.
         const supabaseUrl = process.env.VITE_SUPABASE_URL;
         if (!supabaseUrl) {
             console.error("Supabase URL is missing. Please set the VITE_SUPABASE_URL environment variable.");
             return { success: false, error: "Application configuration error: Missing Supabase URL." };
         }
 
+        // FIX: Replace import.meta.env with process.env to access environment variables.
         const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
         if (!supabaseAnonKey) {
             console.error("Supabase anonymous key is missing. Please set the VITE_SUPABASE_ANON_KEY environment variable.");

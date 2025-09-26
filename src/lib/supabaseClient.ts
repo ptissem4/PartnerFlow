@@ -1,10 +1,9 @@
 
-
 import { createClient } from '@supabase/supabase-js';
 
-// FIX: Corrected environment variable access for Vite.
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// FIX: Replace import.meta.env with process.env to access environment variables.
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl) {
   throw new Error("Supabase URL is missing. Please set the VITE_SUPABASE_URL environment variable.");

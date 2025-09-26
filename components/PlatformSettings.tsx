@@ -1,8 +1,8 @@
 
 
+
 import React, { useState, useEffect } from 'react';
 import { PlatformSettings as PlatformSettingsType } from '../data/mockData';
-// FIX: Corrected path to import from `src/App.tsx`.
 import { Plan } from '../src/App';
 
 interface PlatformSettingsProps {
@@ -59,17 +59,21 @@ const PlatformSettings: React.FC<PlatformSettingsProps> = ({ platformSettings, s
         showToast("Announcement settings saved.");
     };
     
-    const handlePlanDetailChange = (planName: string, field: keyof Plan | keyof Plan['limits'], value: string) => {
+    const handlePlanDetailChange = (planName: string, field: 'price' | 'affiliates' | 'products', value: string) => {
         const updatedPlans = JSON.parse(JSON.stringify(editablePlans));
         const numValue = parseFloat(value);
-        if (field === 'price' || field === 'affiliates' || field === 'products') {
-            if (field === 'price') {
-                updatedPlans[planName].price = numValue;
-            } else {
-                 updatedPlans[planName].limits[field] = numValue;
-            }
-            setEditablePlans(updatedPlans);
+        
+        if (isNaN(numValue)) return;
+
+        const planToUpdate = updatedPlans[planName];
+
+        if (field === 'price') {
+            planToUpdate.price = numValue;
+        } else if (field === 'affiliates' || field === 'products') {
+            planToUpdate.limits[field] = numValue;
         }
+        
+        setEditablePlans(updatedPlans);
     };
     
     const handleSavePlans = () => {
@@ -107,8 +111,7 @@ const PlatformSettings: React.FC<PlatformSettingsProps> = ({ platformSettings, s
                 footer={<button onClick={handleSavePlans} className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">Save Plan Details</button>}
             >
                 <div className="space-y-4">
-                    {/* FIX: Explicitly type 'plan' to resolve property access errors. */}
-                    {Object.values(editablePlans).map((plan: Plan) => (
+                    {Object.values(editablePlans).map((plan) => (
                         <div key={plan.name} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
                             <h4 className="text-lg font-bold text-gray-800 dark:text-white mb-2">{plan.name}</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
