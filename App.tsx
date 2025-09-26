@@ -1,5 +1,4 @@
-// FIX: Removed unnecessary `vite/client` type reference which was causing a 'Cannot find type definition file' error.
-// This reference is for `import.meta.env` which is not used in this file.
+
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
