@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { GoogleGenAI } from '@google/genai';
 
@@ -52,8 +53,13 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ onClose, onApplyTex
         I'm thrilled to announce...`;
 
         try {
-            // FIX: Use process.env.API_KEY directly as per Gemini API guidelines and fix environment variable access.
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const apiKey = (process as any).env.API_KEY;
+            if (!apiKey) {
+                setError("Gemini API key is missing. Please set the API_KEY environment variable.");
+                setIsLoading(false);
+                return;
+            }
+            const ai = new GoogleGenAI({ apiKey });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
