@@ -1,16 +1,19 @@
 
-
 import { createClient } from '@supabase/supabase-js';
 
-// Use the standard environment variable names without any prefixes.
-const supabaseUrl = (process as any).env.SUPABASE_URL;
-const supabaseAnonKey = (process as any).env.SUPABASE_ANON_KEY;
+// The original code was throwing an error when these environment variables were not set,
+// causing a white screen. We are now using placeholder values to allow the app to render.
+// In a real production environment, these should be replaced with actual Supabase credentials
+// via environment variables.
+const supabaseUrl = (process as any).env.SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = (process as any).env.SUPABASE_ANON_KEY || 'placeholder.anon.key';
 
-if (!supabaseUrl) {
-  throw new Error("Supabase URL is missing. Please set the SUPABASE_URL environment variable.");
+if (supabaseUrl === 'https://placeholder.supabase.co') {
+  console.warn("Supabase URL is not set. Using a placeholder. The application will not connect to a database.");
 }
-if (!supabaseAnonKey) {
-  throw new Error("Supabase anonymous key is missing. Please set the SUPABASE_ANON_KEY environment variable.");
+
+if (supabaseAnonKey === 'placeholder.anon.key') {
+  console.warn("Supabase Anon Key is not set. Using a placeholder. The application will not connect to a database.");
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
