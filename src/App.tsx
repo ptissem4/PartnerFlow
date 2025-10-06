@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
@@ -33,6 +31,11 @@ import {
     planDetails as initialPlanDetails,
     platformSettings as initialPlatformSettings,
     userSettings as initialUserSettings,
+    users as mockAllUsers,
+    products as mockAllProducts,
+    payouts as mockAllPayouts,
+    payments as mockAllPayments,
+    communications as mockAllCommunications,
     User,
     Product,
     Payout,
@@ -68,12 +71,26 @@ export type Plan = {
     };
 };
 
+const useMockData = !(process as any).env.SUPABASE_URL || !(process as any).env.SUPABASE_ANON_KEY || (process as any).env.SUPABASE_URL === 'https://placeholder.supabase.co';
+
+const getStoredPlatformSettings = (): PlatformSettingsType => {
+    try {
+        const storedSettings = localStorage.getItem('partnerflow_platformSettings');
+        if (storedSettings) {
+            return JSON.parse(storedSettings);
+        }
+    } catch (error) {
+        console.error("Failed to parse platform settings from localStorage", error);
+    }
+    return initialPlatformSettings;
+};
+
 
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
-  const [authStatus, setAuthStatus] = useState<AuthStatus>('LOGGED_OUT');
+  const [authStatus, setAuthStatus] = useState<AuthStatus>(useMockData ? 'LOGGED_OUT' : 'LOADING');
 
   const [appView, setAppView] = useState<AppView>('landing');
   const [signupRefCode, setSignupRefCode] = useState<string | null>(null);
@@ -93,7 +110,7 @@ const App: React.FC = () => {
   const [communications, setCommunications] = useState<Communication[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
-  const [platformSettings, setPlatformSettings] = useState<PlatformSettingsType>(initialPlatformSettings);
+  const [platformSettings, setPlatformSettingsState] = useState<PlatformSettingsType>(getStoredPlatformSettings);
   const [planDetails, setPlanDetails] = useState(initialPlanDetails);
 
   const showToast = (message: string) => {
@@ -103,12 +120,35 @@ const App: React.FC = () => {
     }, 3000);
   };
 
+  const setAndStorePlatformSettings = (value: React.SetStateAction<PlatformSettingsType>) => {
+    try {
+        const newValue = value instanceof Function ? value(platformSettings) : value;
+        localStorage.setItem('partnerflow_platformSettings', JSON.stringify(newValue));
+        setPlatformSettingsState(newValue);
+    } catch (error) {
+        console.error("Failed to save platform settings to localStorage", error);
+        showToast("Could not save settings.");
+    }
+  };
+
   const handleSupabaseLogout = async () => {
-      await supabase.auth.signOut();
-      // The onAuthStateChange listener will handle resetting state.
+    if (useMockData) {
+        setCurrentUser(null);
+        setSession(null);
+        setAuthStatus('LOGGED_OUT');
+        setAppView('landing');
+        showToast('Logged out from demo mode.');
+        return;
+    }
+    await supabase.auth.signOut();
   }
 
   useEffect(() => {
+    if (useMockData) {
+        console.log("Running in Demo Mode. Supabase connection is disabled.");
+        return;
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
         setSession(session);
         if (session) {
@@ -123,17 +163,6 @@ const App: React.FC = () => {
             if (profile && !error) {
                 let userToSet = profile as User;
                 userToSet.roles = userToSet.roles || [];
-                const adminEmails = ['admin@partnerflow.app', 'ptissem4@hotmail.com'];
-                if (adminEmails.includes(userToSet.email) && !userToSet.roles.includes('super_admin')) {
-                    const { data: updatedProfile, error: updateError } = await supabase
-                        .from('profiles').update({ roles: [...userToSet.roles, 'super_admin'] }).eq('id', userToSet.id).select().single();
-                    if (updateError) {
-                        console.error("Failed to grant admin role:", updateError);
-                    } else {
-                        userToSet = updatedProfile as User;
-                        showToast("Super Admin access granted.");
-                    }
-                }
                 
                 setCurrentUser(userToSet);
                 await fetchData(userToSet);
@@ -165,13 +194,36 @@ const App: React.FC = () => {
 
   const fetchData = async (currentUser: User) => {
     if (!currentUser) return;
+    
+    if (useMockData) {
+        if (currentUser.roles.includes('super_admin')) {
+            setUsers(mockAllUsers.filter(u => u.roles.includes('creator')));
+            setAllUsers(mockAllUsers);
+            setProducts(mockAllProducts);
+            setPayouts(mockAllPayouts);
+            setPayments(mockAllPayments);
+        } else if (currentUser.roles.includes('creator')) {
+            const myAffiliates = mockAllUsers.filter(u => u.partnerIds?.includes(currentUser.id));
+            const myAffiliateIds = myAffiliates.map(a => a.id);
+            setUsers(myAffiliates);
+            setProducts(mockAllProducts.filter(p => p.user_id === currentUser.id));
+            setPayouts(mockAllPayouts.filter(p => myAffiliateIds.includes(p.user_id)));
+            setCommunications(mockAllCommunications.filter(c => c.sender_id === currentUser.id));
+        } else if (currentUser.roles.includes('affiliate')) {
+            const myPartners = mockAllUsers.filter(u => currentUser.partnerIds?.includes(u.id));
+            setUsers(myPartners);
+            setProducts(mockAllProducts.filter(p => currentUser.partnerIds?.includes(p.user_id)));
+            setPayouts(mockAllPayouts.filter(p => p.user_id === currentUser.id));
+        }
+        setUserSettings(initialUserSettings);
+        setPlatformSettingsState(getStoredPlatformSettings()); // Load from storage for demo mode too
+        showToast("Demo data loaded.");
+        return;
+    }
 
     const { data: settingsData } = await supabase.from('user_settings').select('*').eq('user_id', currentUser.id).single();
     if (settingsData) setUserSettings(settingsData as UserSettings);
     else setUserSettings(initialUserSettings);
-    
-    const { data: platformSettingsData } = await supabase.from('platform_settings').select('*').single();
-    if (platformSettingsData) setPlatformSettings(platformSettingsData as PlatformSettingsType);
 
     if (currentUser.roles.includes('super_admin')) {
         const { data: clientsData } = await supabase.from('profiles').select('*').contains('roles', ['creator']);
@@ -296,6 +348,10 @@ const App: React.FC = () => {
   }, [theme]);
 
   const handleUserSettingsChange = async (newSettings: UserSettings) => {
+    if (useMockData) {
+        showToast("Settings changes are disabled in demo mode.");
+        return;
+    }
     if (!currentUser || !userSettings) return;
     const { error } = await supabase.from('user_settings').update(newSettings).eq('user_id', currentUser.id);
     if(error) {
@@ -307,6 +363,10 @@ const App: React.FC = () => {
   };
 
   const recordSaleForAffiliate = async (affiliateId: string, productId: number, saleAmount: number) => {
+    if (useMockData) {
+        showToast("Recording sales is disabled in demo mode.");
+        return;
+    }
     // This is a complex transactional operation, better handled by a database function.
     // For now, we'll perform sequential updates.
     const { data: product, error: productError } = await supabase.from('products').select('*').eq('id', productId).single();
@@ -346,6 +406,10 @@ const App: React.FC = () => {
   };
 
   const handleRecordSaleByCoupon = async (couponCode: string, productId: string, saleAmount: number) => {
+    if (useMockData) {
+        showToast("Recording sales is disabled in demo mode.");
+        return;
+    }
     const { data: affiliate } = await supabase.from('profiles').select('id').ilike('coupon_code', couponCode.trim()).single();
     if (affiliate) {
       recordSaleForAffiliate(affiliate.id, Number(productId), saleAmount);
@@ -355,6 +419,10 @@ const App: React.FC = () => {
   };
 
   const handleSimulateClick = async (productId: number, affiliateId: string) => {
+    if (useMockData) {
+        showToast("Simulating clicks is disabled in demo mode.");
+        return;
+    }
     // In a real app, this would be handled server-side to prevent fraud.
     await supabase.rpc('increment_clicks', { p_id: productId, a_id: affiliateId });
     showToast(`Click simulated!`);
@@ -362,6 +430,28 @@ const App: React.FC = () => {
   };
 
   const handlePasswordLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    if (useMockData) {
+        const user = mockAllUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+        if (user && password === 'password') {
+            // Manually trigger the state changes that onAuthStateChange would normally do.
+            setSession({ user: { id: user.id, email: user.email } } as any); // Create a fake session object
+            setCurrentUser(user);
+            setAuthStatus('LOGGED_IN');
+            await fetchData(user); 
+            setAppView('app');
+
+            if (user.roles.includes('creator') && (user.onboardingStepCompleted || 0) < 5) {
+                setIsOnboarding(true);
+            }
+            showToast('Login successful! (Demo Mode)');
+            return { success: true };
+        } else {
+            const errorMsg = 'Invalid credentials. Use a demo email and password "password".';
+            showToast(errorMsg);
+            return { success: false, error: errorMsg };
+        }
+    }
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
         console.error('Login failed:', JSON.stringify(error, null, 2));
@@ -374,6 +464,10 @@ const App: React.FC = () => {
   };
   
   const handleImpersonateUser = (userId: string) => {
+    if (useMockData) {
+        showToast("Impersonation is disabled in demo mode.");
+        return;
+    }
     const userToImpersonate = allUsers.find(u => u.id === userId);
     if (userToImpersonate) {
         showToast(`Now impersonating ${userToImpersonate.name}.`);
@@ -383,6 +477,10 @@ const App: React.FC = () => {
   };
 
   const handleAffiliateSignup = async (name: string, email: string) => {
+    if (useMockData) {
+        showToast("Affiliate signups are disabled in demo mode, but we'll simulate it!");
+        return;
+    }
     if (!signupRefCode) {
         showToast("Invalid signup link.");
         return;
@@ -420,6 +518,11 @@ const App: React.FC = () => {
   };
 
   const handleSupabaseSignup = async (name: string, companyName: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    if (useMockData) {
+        showToast("Account registration is disabled in demo mode.");
+        return { success: false, error: "Account registration is disabled in demo mode." };
+    }
+    
     const { data: { user }, error } = await supabase.auth.signUp({ 
         email, 
         password,
@@ -444,6 +547,9 @@ const App: React.FC = () => {
         }
 
         try {
+            const adminEmails = ['admin@partnerflow.app', 'ptissem4@hotmail.com'];
+            const roles: UserRole[] = adminEmails.includes(email) ? ['creator', 'super_admin'] : ['creator'];
+
             const res = await fetch(
               `${supabaseUrl}/functions/v1/create-user-profile`,
               {
@@ -458,6 +564,7 @@ const App: React.FC = () => {
                     name: name,
                     company_name: companyName,
                     avatar: `https://i.pravatar.cc/150?u=${email}`,
+                    roles: roles,
                 }),
               }
             );
@@ -480,6 +587,7 @@ const App: React.FC = () => {
   };
 
   const handleOnboardingStepChange = async (step: number) => {
+    if (useMockData) return; // Onboarding changes are not saved in demo mode.
       if (!currentUser) return;
       const { error } = await supabase.from('profiles').update({ onboardingStepCompleted: step }).eq('id', currentUser.id);
       if(!error) {
@@ -489,6 +597,10 @@ const App: React.FC = () => {
   };
 
   const handleOnboardingAddProduct = async (productName: string, productPrice: number) => {
+    if (useMockData) {
+        showToast("This action is disabled in demo mode.");
+        return;
+    }
     if (!currentUser) return;
     const newProduct = {
       user_id: currentUser.id,
@@ -513,6 +625,10 @@ const App: React.FC = () => {
   };
   
   const handleOnboardingInviteAffiliate = async (email: string) => {
+    if (useMockData) {
+        showToast("This action is disabled in demo mode.");
+        return;
+    }
     if (!currentUser) return;
      // Create a pending profile and partnership
     const { data: newProfile, error: profileError } = await supabase.from('profiles').insert({
@@ -553,6 +669,10 @@ const App: React.FC = () => {
   };
 
   const handlePlanChange = async (newPlanName: string, billingCycle: 'monthly' | 'annual') => {
+    if (useMockData) {
+        showToast("Plan changes are disabled in demo mode.");
+        return;
+    }
     if (currentUser) {
         const isUpgradingFromAffiliate = !currentUser.roles.includes('creator');
         const newRoles = isUpgradingFromAffiliate ? [...currentUser.roles, 'creator'] as UserRole[] : currentUser.roles;
@@ -592,6 +712,10 @@ const App: React.FC = () => {
     };
 
     const handleSendCommunication = async (communication: Omit<Communication, 'id' | 'date' | 'sender_id'>) => {
+        if (useMockData) {
+            showToast("Sending messages is disabled in demo mode.");
+            return;
+        }
         if (!currentUser) return;
         const newCommunication = { ...communication, sender_id: currentUser.id, date: new Date().toISOString() };
         const { error } = await supabase.from('communications').insert(newCommunication);
@@ -602,6 +726,10 @@ const App: React.FC = () => {
     };
 
   const handleAdminPlanChange = async (userId: string, newPlanName: string) => {
+    if (useMockData) {
+        showToast("This action is disabled in demo mode.");
+        return;
+    }
     const { error } = await supabase.from('profiles').update({ currentPlan: newPlanName }).eq('id', userId);
     if (!error && currentUser) {
         showToast(`Successfully updated plan for user to ${newPlanName}.`);
@@ -610,6 +738,10 @@ const App: React.FC = () => {
   };
 
   const handleSuspendUser = async (userId: string) => {
+    if (useMockData) {
+        showToast("This action is disabled in demo mode.");
+        return;
+    }
     const user = allUsers.find(u => u.id === userId);
     if (!user || !currentUser) return;
     const newStatus = user.status === 'Suspended' ? 'Active' : 'Suspended';
@@ -621,6 +753,10 @@ const App: React.FC = () => {
   };
   
   const handleDeleteUser = async (userId: string) => {
+    if (useMockData) {
+        showToast("This action is disabled in demo mode.");
+        return;
+    }
     const { error } = await supabase.from('profiles').delete().eq('id', userId);
     if (!error && currentUser) {
         showToast(`User profile for ID ${userId} has been deleted.`);
@@ -704,7 +840,7 @@ const App: React.FC = () => {
         case 'PlatformSettings':
             return <PlatformSettings 
                 platformSettings={platformSettings} 
-                setPlatformSettings={setPlatformSettings}
+                setPlatformSettings={setAndStorePlatformSettings}
                 planDetails={planDetails}
                 setPlanDetails={setPlanDetails}
                 showToast={showToast}
@@ -733,7 +869,7 @@ const App: React.FC = () => {
     // Handle routing based on appView state
     switch (appView) {
         case 'landing':
-            return <LandingPage currentUser={currentUser} onNavigateToLogin={() => setAppView('login')} onNavigateToRegister={() => setAppView('register')} onNavigateToDashboard={() => setAppView('app')} onNavigateToPartnerflowSignup={() => setAppView('partnerflow_affiliate_signup')} />;
+            return <LandingPage currentUser={currentUser} onNavigateToLogin={() => setAppView('login')} onNavigateToRegister={() => setAppView('register')} onNavigateToDashboard={() => setAppView('app')} onNavigateToPartnerflowSignup={() => setAppView('partnerflow_affiliate_signup')} platformSettings={platformSettings} />;
         case 'login':
             return <LoginPage onLogin={handlePasswordLogin} onBack={() => setAppView('landing')} onNavigateToRegister={() => setAppView('register')} />;
         case 'admin_login':
@@ -754,9 +890,9 @@ const App: React.FC = () => {
             return <NotFoundPage onNavigateHome={() => setAppView('landing')} />;
     }
     
-    if (!session || !currentUser) {
+    if (authStatus !== 'LOGGED_IN' || !currentUser) {
         // Fallback to landing if not logged in but trying to access app
-        return <LandingPage currentUser={currentUser} onNavigateToLogin={() => setAppView('login')} onNavigateToRegister={() => setAppView('register')} onNavigateToDashboard={() => setAppView('app')} onNavigateToPartnerflowSignup={() => setAppView('partnerflow_affiliate_signup')} />;
+        return <LandingPage currentUser={currentUser} onNavigateToLogin={() => setAppView('login')} onNavigateToRegister={() => setAppView('register')} onNavigateToDashboard={() => setAppView('app')} onNavigateToPartnerflowSignup={() => setAppView('partnerflow_affiliate_signup')} platformSettings={platformSettings} />;
     }
     
     // Main App View

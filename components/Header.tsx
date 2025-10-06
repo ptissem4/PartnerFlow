@@ -59,9 +59,8 @@ const Header: React.FC<HeaderProps> = ({ title, theme, setTheme, onMenuClick, cu
     
     useEffect(() => {
         const isDismissed = sessionStorage.getItem('announcementDismissed') === 'true';
-        if (platformSettings.announcement.isEnabled && !isDismissed) {
-            setIsAnnouncementVisible(true);
-        }
+        const shouldBeVisible = platformSettings.announcement.isEnabled && !isDismissed;
+        setIsAnnouncementVisible(shouldBeVisible);
     }, [platformSettings]);
 
     const handleDismissAnnouncement = () => {

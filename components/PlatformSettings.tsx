@@ -44,6 +44,11 @@ const PlatformSettings: React.FC<PlatformSettingsProps> = ({ platformSettings, s
     const [editablePlans, setEditablePlans] = useState(planDetails);
     
     useEffect(() => {
+        setAnnouncementText(platformSettings.announcement.text);
+        setIsAnnouncementEnabled(platformSettings.announcement.isEnabled);
+    }, [platformSettings]);
+    
+    useEffect(() => {
         setEditablePlans(planDetails);
     }, [planDetails]);
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { planDetails, User } from '../data/mockData';
+import { planDetails, User, PlatformSettings as PlatformSettingsType } from '../data/mockData';
 
 interface LandingPageProps {
   currentUser?: User | null;
@@ -7,6 +7,7 @@ interface LandingPageProps {
   onNavigateToRegister: () => void;
   onNavigateToDashboard?: () => void;
   onNavigateToPartnerflowSignup: () => void;
+  platformSettings: PlatformSettingsType;
 }
 
 const CheckIcon: React.FC<{ className?: string }> = ({ className = "h-6 w-6 text-cyan-500 mr-2 flex-shrink-0" }) => (
@@ -108,7 +109,7 @@ const features = [
     }
 ];
 
-const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogin, onNavigateToRegister, onNavigateToDashboard, onNavigateToPartnerflowSignup }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogin, onNavigateToRegister, onNavigateToDashboard, onNavigateToPartnerflowSignup, platformSettings }) => {
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
     const [newsletterEmail, setNewsletterEmail] = useState('');
     const [newsletterError, setNewsletterError] = useState('');
@@ -116,6 +117,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogi
     const [activeFeature, setActiveFeature] = useState('dashboard');
     const plans = Object.values(planDetails);
     
+    const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(false);
+
+    useEffect(() => {
+        const isDismissed = sessionStorage.getItem('announcementDismissed') === 'true';
+        const shouldBeVisible = platformSettings.announcement.isEnabled && !isDismissed;
+        setIsAnnouncementVisible(shouldBeVisible);
+    }, [platformSettings]);
+
+    const handleDismissAnnouncement = () => {
+        sessionStorage.setItem('announcementDismissed', 'true');
+        setIsAnnouncementVisible(false);
+    };
+
     const currentFeature = features.find(f => f.id === activeFeature) || features[0];
 
     const handleNewsletterSubmit = (e: React.FormEvent) => {
@@ -135,6 +149,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogi
 
     return (
         <div className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans overflow-x-hidden">
+            {isAnnouncementVisible && (
+                <div className="bg-cyan-500 text-white text-sm font-medium p-2 text-center relative">
+                    <span>{platformSettings.announcement.text}</span>
+                    <button onClick={handleDismissAnnouncement} className="absolute top-1/2 right-4 transform -translate-y-1/2">&times;</button>
+                </div>
+            )}
             <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
                 <div className="container mx-auto px-6 py-4 flex justify-between items-center">
                     <a href="#" className="flex items-center">
