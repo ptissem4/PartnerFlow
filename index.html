@@ -40,6 +40,29 @@
         },
       }
     </script>
+    <script>
+      // Polyfill process.env for browser environments without a build step.
+      // Your hosting provider (e.g., Vercel) will replace the %%VARIABLES%%
+      // with the actual values you've set in your project settings.
+      const env = {
+        VITE_SUPABASE_URL: "%%VITE_SUPABASE_URL%%",
+        VITE_SUPABASE_ANON_KEY: "%%VITE_SUPABASE_ANON_KEY%%",
+        // The Gemini guidelines require using the specific name `API_KEY`.
+        // We map your `VITE_GEMINI_API_KEY` variable to it here.
+        API_KEY: "%%VITE_GEMINI_API_KEY%%"
+      };
+
+      // If the build process doesn't replace the placeholders, they become literal strings.
+      // In that case, we treat them as undefined so downstream code can use fallbacks.
+      Object.keys(env).forEach(key => {
+        const value = env[key];
+        if (typeof value === 'string' && value.startsWith('%%') && value.endsWith('%%')) {
+          env[key] = undefined;
+        }
+      });
+      
+      window.process = { env };
+    </script>
   <script type="importmap">
 {
   "imports": {
