@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
@@ -74,7 +75,7 @@ export type Plan = {
     };
 };
 
-const useMockData = !process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_URL === 'https://placeholder.supabase.co';
+const useMockData = !window.process.env.VITE_SUPABASE_URL || !window.process.env.VITE_SUPABASE_ANON_KEY || window.process.env.VITE_SUPABASE_URL === 'https://placeholder.supabase.co';
 
 const getStoredPlatformSettings = (): PlatformSettingsType => {
     try {
@@ -552,13 +553,13 @@ const App: React.FC = () => {
     }
     
     if (user) {
-        const supabaseUrl = process.env.VITE_SUPABASE_URL;
+        const supabaseUrl = window.process.env.VITE_SUPABASE_URL;
         if (!supabaseUrl) {
             console.error("Supabase URL is missing. Please set the VITE_SUPABASE_URL environment variable.");
             return { success: false, error: "Application configuration error: Missing Supabase URL." };
         }
 
-        const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+        const supabaseAnonKey = window.process.env.VITE_SUPABASE_ANON_KEY;
         if (!supabaseAnonKey) {
             console.error("Supabase anonymous key is missing. Please set the VITE_SUPABASE_ANON_KEY environment variable.");
             return { success: false, error: "Application configuration error: Missing Supabase anonymous key." };

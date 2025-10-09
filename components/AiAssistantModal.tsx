@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState } from 'react';
 import { GoogleGenAI } from '@google/genai';
 
@@ -54,7 +55,7 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ onClose, onApplyTex
         I'm thrilled to announce...`;
 
         try {
-            const apiKey = process.env.API_KEY;
+            const apiKey = window.process.env.API_KEY;
             if (!apiKey) {
                 setError("Gemini API key is missing. Please set the API_KEY environment variable.");
                 setIsLoading(false);
