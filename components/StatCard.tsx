@@ -14,7 +14,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, change, changeType })
   const Arrow = isIncrease ? '↑' : '↓';
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow transition-all duration-300 hover:scale-105 hover:shadow-xl cursor-pointer">
       <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{title}</h4>
       <p className="text-3xl font-bold text-gray-800 dark:text-white">{value}</p>
       {change && changeType && (

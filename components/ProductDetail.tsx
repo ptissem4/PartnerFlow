@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { Product, Creative, User } from '../data/mockData';
+import { Product, Resource, User, ResourceType } from '../data/mockData';
 import { Plan } from '../src/App';
 import AddProductModal from './AddProductModal';
-import AddCreativeModal from './AddCreativeModal';
-import ConfirmationModal from './ConfirmationModal';
 
 interface ProductDetailProps {
     product: Product;
+    resources: Resource[];
     onBack: () => void;
     onUpdateProduct: (product: Partial<Product>, id: number) => void;
     showToast: (message: string) => void;
@@ -14,44 +13,25 @@ interface ProductDetailProps {
     currentUser: User;
 }
 
-const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onUpdateProduct, showToast, currentPlan, currentUser }) => {
+const ResourceIcon: React.FC<{type: ResourceType}> = ({ type }) => {
+    switch (type) {
+        case 'Image':
+            return <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
+        case 'PDF Guide':
+            return <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>;
+        case 'Video Link':
+            return <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>;
+        case 'Email Swipe':
+             return <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
+        default:
+            return null;
+    }
+}
+
+const ProductDetail: React.FC<ProductDetailProps> = ({ product, resources, onBack, onUpdateProduct, showToast, currentPlan, currentUser }) => {
     const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false);
-    const [isCreativeModalOpen, setIsCreativeModalOpen] = useState(false);
-    const [editingCreative, setEditingCreative] = useState<Creative | null>(null);
-    const [creativeToDelete, setCreativeToDelete] = useState<Creative | null>(null);
-
-    const handleOpenAddCreativeModal = () => {
-        setEditingCreative(null);
-        setIsCreativeModalOpen(true);
-    };
-
-    const handleOpenEditCreativeModal = (creative: Creative) => {
-        setEditingCreative(creative);
-        setIsCreativeModalOpen(true);
-    };
-
-    const handleSaveCreative = (creativeData: Creative) => {
-        let updatedCreatives: Creative[];
-        if (editingCreative) { // Editing existing creative
-            updatedCreatives = product.creatives.map(c => c.id === creativeData.id ? creativeData : c);
-            showToast("Creative updated successfully!");
-        } else { // Adding new creative
-            updatedCreatives = [...product.creatives, creativeData];
-            showToast("Creative added successfully!");
-        }
-        onUpdateProduct({ creatives: updatedCreatives }, product.id);
-    };
     
-    const handleDeleteCreative = () => {
-        if (creativeToDelete) {
-            const updatedCreatives = product.creatives.filter(c => c.id !== creativeToDelete.id);
-            onUpdateProduct({ creatives: updatedCreatives }, product.id);
-            setCreativeToDelete(null);
-            showToast("Creative deleted successfully.");
-        }
-    };
-
-    const nextCreativeId = Math.max(0, ...product.creatives.map(c => c.id)) + 1;
+    const assignedResources = resources.filter(r => r.productIds.includes(product.id));
 
     return (
         <>
@@ -67,22 +47,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onUpdate
                     currentUser={currentUser}
                 />
             }
-            {isCreativeModalOpen &&
-                <AddCreativeModal 
-                    onClose={() => setIsCreativeModalOpen(false)}
-                    onSave={handleSaveCreative}
-                    creativeToEdit={editingCreative}
-                    nextId={nextCreativeId}
-                />
-            }
-            {creativeToDelete && (
-                <ConfirmationModal
-                    title="Delete Creative"
-                    message={`Are you sure you want to delete "${creativeToDelete.name}"?`}
-                    onConfirm={handleDeleteCreative}
-                    onCancel={() => setCreativeToDelete(null)}
-                />
-            )}
             <div>
                 <button onClick={onBack} className="mb-4 flex items-center text-sm font-medium text-cyan-600 dark:text-cyan-500 hover:underline">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -103,38 +67,29 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onUpdate
                 
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-                        <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Marketing Creatives</h3>
-                        <button
-                            onClick={handleOpenAddCreativeModal}
-                            className="w-full sm:w-auto px-4 py-2 bg-teal-500 text-white font-semibold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75"
-                        >
-                            Add Creative
-                        </button>
+                        <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Assigned Resources</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Manage all resources from the new central <button onClick={onBack} className="font-medium text-cyan-500 hover:underline">Resource Library</button>.</p>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {product.creatives.length > 0 ? product.creatives.map(creative => (
-                            <div key={creative.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden group relative">
-                                <img src={creative.imageUrl} alt={creative.name} className="w-full h-48 object-cover bg-gray-200 dark:bg-gray-700"/>
-                                <div className="p-4">
-                                    <h4 className="font-semibold text-gray-800 dark:text-white truncate">{creative.name}</h4>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 truncate">{creative.description || 'No description'}</p>
+                    
+                    <div className="space-y-3">
+                        {assignedResources.length > 0 ? assignedResources.map(resource => (
+                            <div key={resource.id} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md flex items-center">
+                                <ResourceIcon type={resource.type} />
+                                <div className="flex-grow">
+                                    <p className="font-medium text-gray-800 dark:text-white">{resource.name}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{resource.description}</p>
                                 </div>
-                                <div className="absolute top-2 right-2 flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => handleOpenEditCreativeModal(creative)} className="p-2 bg-white/80 dark:bg-gray-800/80 rounded-full shadow-md hover:bg-white dark:hover:bg-gray-700">
-                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg>
-                                    </button>
-                                     <button onClick={() => setCreativeToDelete(creative)} className="p-2 bg-white/80 dark:bg-gray-800/80 rounded-full shadow-md hover:bg-white dark:hover:bg-gray-700">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                    </button>
-                                </div>
+                                <span className="text-xs font-medium bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-300 px-2 py-1 rounded-full">
+                                    {resource.type}
+                                </span>
                             </div>
                         )) : (
                             <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400">
-                                No creatives found for this product.
+                                No resources assigned to this product yet.
                             </div>
                         )}
                     </div>
+
                 </div>
             </div>
         </>

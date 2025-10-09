@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { User, Communication } from '../data/mockData';
 import AiAssistantModal from './AiAssistantModal';
+import EmptyState from './EmptyState';
 
 interface CommunicateProps {
     affiliates: User[];
@@ -109,7 +110,7 @@ const Communicate: React.FC<CommunicateProps> = ({ affiliates, communications, o
                         <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Communication History</h3>
                         <div className="space-y-4 max-h-[60vh] overflow-y-auto">
                             {communications.length > 0 ? communications.map(comm => (
-                                <div key={comm.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                                <div key={comm.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg animate-fade-in-up">
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <p className="font-semibold text-gray-800 dark:text-white">{comm.subject}</p>
@@ -124,7 +125,11 @@ const Communicate: React.FC<CommunicateProps> = ({ affiliates, communications, o
                                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{comm.message}</p>
                                 </div>
                             )) : (
-                                <p className="text-center py-10 text-gray-500 dark:text-gray-400">No messages sent yet.</p>
+                                <EmptyState
+                                    icon={<PaperAirplaneIcon />}
+                                    title="No messages sent yet"
+                                    message="Your communication history with affiliates will appear here after you send your first message."
+                                />
                             )}
                         </div>
                     </div>
@@ -134,5 +139,8 @@ const Communicate: React.FC<CommunicateProps> = ({ affiliates, communications, o
         </>
     );
 };
+
+const PaperAirplaneIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>;
+
 
 export default Communicate;

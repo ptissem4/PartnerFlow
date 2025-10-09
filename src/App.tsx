@@ -9,6 +9,7 @@ import Payouts from '../components/Payouts';
 import Settings from '../components/Settings';
 import AffiliatePortal from '../components/AffiliatePortal';
 import Products from '../components/Products';
+import Resources from '../components/Creatives'; // Repurposed Creatives as Resources
 import Toast from '../components/Toast';
 import Reports from '../components/Reports';
 import LandingPage from '../components/LandingPage';
@@ -33,11 +34,13 @@ import {
     userSettings as initialUserSettings,
     users as mockAllUsers,
     products as mockAllProducts,
+    resources as mockAllResources, // Added resources
     payouts as mockAllPayouts,
     payments as mockAllPayments,
     communications as mockAllCommunications,
     User,
     Product,
+    Resource, // Added Resource type
     Payout,
     Payment,
     Communication,
@@ -48,7 +51,7 @@ import {
 } from '../data/mockData';
 
 
-export type Page = 'Dashboard' | 'Affiliates' | 'Products' | 'Payouts' | 'Settings' | 'Reports' | 'Billing' | 'Communicate';
+export type Page = 'Dashboard' | 'Affiliates' | 'Products' | 'Resources' | 'Payouts' | 'Settings' | 'Reports' | 'Billing' | 'Communicate';
 export type AdminPage = 'AdminDashboard' | 'Clients' | 'PlatformSettings' | 'Analytics' | 'PartnerflowAffiliates';
 export type Theme = 'light' | 'dark';
 export type AppView = 'landing' | 'login' | 'signup' | 'app' | 'stripe_connect' | 'register' | 'partnerflow_affiliate_signup' | 'admin_login';
@@ -105,6 +108,7 @@ const App: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]); // Used by admin
   const [products, setProducts] = useState<Product[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [communications, setCommunications] = useState<Communication[]>([]);
@@ -183,6 +187,7 @@ const App: React.FC = () => {
             setUsers([]);
             setAllUsers([]);
             setProducts([]);
+            setResources([]);
             setPayouts([]);
             setAppView('landing');
             setAuthStatus('LOGGED_OUT');
@@ -200,6 +205,7 @@ const App: React.FC = () => {
             setUsers(mockAllUsers.filter(u => u.roles.includes('creator')));
             setAllUsers(mockAllUsers);
             setProducts(mockAllProducts);
+            setResources(mockAllResources);
             setPayouts(mockAllPayouts);
             setPayments(mockAllPayments);
         } else if (currentUser.roles.includes('creator')) {
@@ -207,12 +213,14 @@ const App: React.FC = () => {
             const myAffiliateIds = myAffiliates.map(a => a.id);
             setUsers(myAffiliates);
             setProducts(mockAllProducts.filter(p => p.user_id === currentUser.id));
+            setResources(mockAllResources.filter(r => r.user_id === currentUser.id));
             setPayouts(mockAllPayouts.filter(p => myAffiliateIds.includes(p.user_id)));
             setCommunications(mockAllCommunications.filter(c => c.sender_id === currentUser.id));
         } else if (currentUser.roles.includes('affiliate')) {
             const myPartners = mockAllUsers.filter(u => currentUser.partnerIds?.includes(u.id));
             setUsers(myPartners);
             setProducts(mockAllProducts.filter(p => currentUser.partnerIds?.includes(p.user_id)));
+            setResources(mockAllResources.filter(r => currentUser.partnerIds?.includes(r.user_id)));
             setPayouts(mockAllPayouts.filter(p => p.user_id === currentUser.id));
         }
         setUserSettings(initialUserSettings);
@@ -234,6 +242,9 @@ const App: React.FC = () => {
 
         const { data: allProductsData } = await supabase.from('products').select('*');
         setProducts(allProductsData as Product[] || []);
+        
+        const { data: allResourcesData } = await supabase.from('resources').select('*');
+        setResources(allResourcesData as Resource[] || []);
         
         const { data: allPayoutsData } = await supabase.from('payouts').select('*');
         setPayouts(allPayoutsData as Payout[] || []);
@@ -268,6 +279,9 @@ const App: React.FC = () => {
 
         const { data: productsData } = await supabase.from('products').select('*').eq('user_id', currentUser.id);
         setProducts(productsData as Product[] || []);
+        
+        const { data: resourcesData } = await supabase.from('resources').select('*').eq('user_id', currentUser.id);
+        setResources(resourcesData as Resource[] || []);
 
         const { data: commsData } = await supabase.from('communications').select('*').eq('sender_id', currentUser.id);
         setCommunications(commsData as Communication[] || []);
@@ -283,12 +297,16 @@ const App: React.FC = () => {
             if (partnerIds.length > 0) {
                 const { data: productsData } = await supabase.from('products').select('*').in('user_id', partnerIds);
                 setProducts(productsData as Product[] || []);
+                const { data: resourcesData } = await supabase.from('resources').select('*').in('user_id', partnerIds);
+                setResources(resourcesData as Resource[] || []);
             } else {
                 setProducts([]);
+                setResources([]);
             }
         } else {
             setUsers([]);
             setProducts([]);
+            setResources([]);
         }
 
         const { data: payoutsData } = await supabase.from('payouts').select('*').eq('user_id', currentUser.id);
@@ -611,7 +629,6 @@ const App: React.FC = () => {
       clicks: 0,
       commission_tiers: [{ threshold: 0, rate: 20 }],
       bonuses: [],
-      creatives: [],
       creation_date: new Date().toISOString().split('T')[0],
     };
     const { error } = await supabase.from('products').insert(newProduct);
@@ -786,7 +803,9 @@ const App: React.FC = () => {
         case 'Affiliates':
           return <Affiliates affiliates={users} payouts={payouts} showToast={showToast} currentPlan={currentPlan} currentUser={user} refetchData={() => fetchData(user)} />;
         case 'Products':
-          return <Products products={products} showToast={showToast} currentPlan={currentPlan} currentUser={user} refetchData={() => fetchData(user)} />;
+          return <Products products={products} resources={resources} showToast={showToast} currentPlan={currentPlan} currentUser={user} refetchData={() => fetchData(user)} />;
+        case 'Resources':
+          return <Resources resources={resources} products={products} showToast={showToast} currentUser={user} refetchData={() => fetchData(user)} />;
         case 'Payouts':
           return <Payouts 
             payouts={payouts} 
@@ -913,11 +932,13 @@ const App: React.FC = () => {
         mainContent = <AffiliatePortal 
             currentUser={currentUser} 
             users={users} 
-            products={products} 
+            products={products}
+            resources={resources} 
             payouts={payouts}
             onSimulateClick={handleSimulateClick}
             onStartUpgrade={handleUpgradeFromBanner}
             refetchData={() => fetchData(currentUser)}
+            showToast={showToast}
         />;
     }
 
@@ -954,7 +975,9 @@ const App: React.FC = () => {
                     onboardingIncomplete={onboardingIncomplete}
                 />
                 <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:p-8">
-                    {mainContent}
+                   <div key={isSuperAdmin ? adminActivePage : activePage + activeView} className="animate-fade-in">
+                        {mainContent}
+                    </div>
                 </main>
             </div>
             {isOnboarding && <OnboardingModal 

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { User, Product, Payout } from '../data/mockData';
+import EmptyState from './EmptyState';
 
 interface ReportsProps {
   affiliates: User[];
@@ -101,12 +102,12 @@ const Reports: React.FC<ReportsProps> = ({ affiliates, products, payouts }) => {
         <table className="w-full text-left text-sm text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
-              {data.length > 0 && Object.keys(data[0]).map(header => <th key={header} scope="col" className="px-6 py-3">{header}</th>)}
+              {data.length > 0 ? Object.keys(data[0]).map(header => <th key={header} scope="col" className="px-6 py-3">{header}</th>) : <th className="px-6 py-3"></th>}
             </tr>
           </thead>
           <tbody>
             {data.length > 0 ? data.map((row, index) => (
-              <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+              <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 animate-fade-in-up">
                 {Object.values(row).map((value, i) => (
                   <td key={i} className={`px-6 py-4 ${i === 0 ? 'font-semibold text-gray-900 dark:text-white' : ''}`}>
                     {String(value)}
@@ -114,7 +115,13 @@ const Reports: React.FC<ReportsProps> = ({ affiliates, products, payouts }) => {
                 ))}
               </tr>
             )) : (
-              <tr><td colSpan={5} className="text-center py-10">No data for this period.</td></tr>
+              <tr><td colSpan={5} className="py-4">
+                 <EmptyState
+                    icon={<ChartBarIcon />}
+                    title="Not enough data"
+                    message="There is no data available for the selected time period. Try selecting a different range or wait for new sales to come in."
+                />
+              </td></tr>
             )}
           </tbody>
         </table>
@@ -146,5 +153,7 @@ const Reports: React.FC<ReportsProps> = ({ affiliates, products, payouts }) => {
     </div>
   );
 };
+
+const ChartBarIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>;
 
 export default Reports;

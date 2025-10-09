@@ -1,18 +1,17 @@
-
-
-
-import React, { useState, useMemo } from 'react';
-import { User, Product, CommissionTier, PerformanceBonus, Creative, Payout, Sale } from '../data/mockData';
+import React, { useState, useMemo, useEffect } from 'react';
+import { User, Product, CommissionTier, PerformanceBonus, Resource, Payout, Sale, ResourceType } from '../data/mockData';
 import { supabase } from '../src/lib/supabaseClient';
 
 interface AffiliatePortalProps {
   currentUser: User;
   users: User[];
   products: Product[];
+  resources: Resource[];
   payouts: Payout[];
   onSimulateClick: (productId: number, affiliateId: string) => void;
   onStartUpgrade: () => void;
   refetchData: () => void;
+  showToast: (message: string) => void;
 }
 
 const formatCommissionTiers = (tiers: CommissionTier[]) => {
@@ -27,6 +26,33 @@ const formatBonuses = (bonuses: PerformanceBonus[]) => {
     const bonus = bonuses[0]; // Assuming one bonus for simplicity in UI
     return `Bonus: $${bonus.reward} for ${bonus.goal} ${bonus.type}!`;
 }
+
+const SettingsCard: React.FC<{ title: string; children: React.ReactNode, footer?: React.ReactNode }> = ({ title, children, footer }) => (
+  <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+    <div className="p-6">
+      <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">{title}</h3>
+      <div className="space-y-4">
+        {children}
+      </div>
+    </div>
+    {footer && (
+        <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 text-right rounded-b-lg">
+            {footer}
+        </div>
+    )}
+  </div>
+);
+
+const Toggle: React.FC<{ label: string; enabled: boolean; onToggle: (enabled: boolean) => void }> = ({ label, enabled, onToggle }) => (
+    <label htmlFor={label} className="flex items-center justify-between cursor-pointer">
+        <span className="text-gray-700 dark:text-gray-300">{label}</span>
+        <div className="relative">
+        <input id={label} type="checkbox" className="sr-only" checked={enabled} onChange={(e) => onToggle(e.target.checked)} />
+        <div className={`block w-14 h-8 rounded-full transition ${enabled ? 'bg-cyan-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+        <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${enabled ? 'transform translate-x-6' : ''}`}></div>
+        </div>
+  </label>
+);
 
 const GetCodeModal: React.FC<{ code: string, onClose: () => void }> = ({ code, onClose }) => {
   const [copied, setCopied] = useState(false);
@@ -61,12 +87,32 @@ const GetCodeModal: React.FC<{ code: string, onClose: () => void }> = ({ code, o
 };
 
 
-const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, users, products, payouts, onSimulateClick, onStartUpgrade, refetchData }) => {
+const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, users, products, resources, payouts, onSimulateClick, onStartUpgrade, refetchData, showToast }) => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings'>('dashboard');
   const [selectedPartner, setSelectedPartner] = useState<User | null>(null);
   const [copiedLink, setCopiedLink] = useState<number | null>(null);
   const [isEditingCode, setIsEditingCode] = useState(false);
   const [newReferralCode, setNewReferralCode] = useState(currentUser.referralCode || '');
   const [showCodeModal, setShowCodeModal] = useState<string | null>(null);
+
+  // Settings states
+  const [name, setName] = useState(currentUser.name);
+  const [email, setEmail] = useState(currentUser.email);
+  const [paypalEmail, setPaypalEmail] = useState(currentUser.paypal_email || '');
+  const [notifications, setNotifications] = useState(currentUser.notifications || { newSale: true, monthlyReport: false });
+  const [expandedSwipe, setExpandedSwipe] = useState<number | null>(null);
+
+  // FIX: Sync local state with currentUser prop when it changes after a refetch
+  useEffect(() => {
+    if (currentUser) {
+        setName(currentUser.name);
+        setEmail(currentUser.email);
+        setNewReferralCode(currentUser.referralCode || '');
+        setPaypalEmail(currentUser.paypal_email || '');
+        setNotifications(currentUser.notifications || { newSale: true, monthlyReport: false });
+    }
+  }, [currentUser]);
+
 
   const affiliatePartners = useMemo(() => {
     return users.filter(u => currentUser.partnerIds?.includes(u.id));
@@ -98,6 +144,12 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, users, p
     if (!selectedPartner) return [];
     return products.filter(p => p.user_id === selectedPartner.id);
   }, [products, selectedPartner]);
+  
+  const partnerResources = useMemo(() => {
+    if (!selectedPartner) return [];
+    const promotableProductIds = promotableProducts.map(p => p.id);
+    return resources.filter(r => r.productIds.some(id => promotableProductIds.includes(id)));
+  }, [resources, promotableProducts, selectedPartner]);
 
   const handleCopyLink = (link: string, productId: number) => {
     navigator.clipboard.writeText(link).then(() => {
@@ -115,20 +167,64 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, users, p
 
       if (!error) {
         setIsEditingCode(false);
+        showToast("Referral code updated!");
         refetchData();
       } else {
-        alert("Error updating referral code.");
+        showToast("Error updating referral code.");
       }
     } else {
-        alert("Referral code cannot be empty or contain spaces.");
+        showToast("Referral code cannot be empty or contain spaces.");
     }
   };
 
-  const generateEmbedCode = (creative: Creative, product: Product) => {
+  const handleSaveProfile = async () => {
+    const { error } = await supabase
+        .from('profiles')
+        .update({ name: name, email: email })
+        .eq('id', currentUser.id);
+
+    if (error) {
+        showToast(`Error updating profile: ${error.message}`);
+    } else {
+        showToast('Profile updated successfully!');
+        refetchData();
+    }
+  };
+
+  const handleSavePayoutSettings = async () => {
+    const { error } = await supabase
+        .from('profiles')
+        .update({ paypal_email: paypalEmail })
+        .eq('id', currentUser.id);
+
+    if (error) {
+        showToast(`Error updating payout settings: ${error.message}`);
+    } else {
+        showToast('Payout settings updated!');
+        refetchData();
+    }
+  }
+
+  const handleSaveNotifications = async () => {
+     const { error } = await supabase
+        .from('profiles')
+        .update({ notifications: notifications })
+        .eq('id', currentUser.id);
+
+    if (error) {
+        showToast(`Error updating notifications: ${error.message}`);
+    } else {
+        showToast('Notification settings updated!');
+        refetchData();
+    }
+  }
+
+  const generateEmbedCode = (resource: Resource) => {
+    const product = products.find(p => resource.productIds.includes(p.id));
     if (!product || !currentUser.referralCode) return '';
     const affiliateLink = `${product.sales_page_url}?ref=${currentUser.referralCode}`;
     return `<a href="${affiliateLink}" target="_blank" rel="noopener noreferrer">
-  <img src="${creative.imageUrl}" alt="${creative.description}" />
+  <img src="${resource.content}" alt="${resource.description}" />
 </a>`;
   };
 
@@ -139,6 +235,19 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, users, p
         case 'Refunded': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
     }
   }
+  
+   const ResourceIcon: React.FC<{type: ResourceType, className?: string}> = ({ type, className="h-full w-full text-gray-400 dark:text-gray-500" }) => {
+    switch (type) {
+        case 'PDF Guide':
+            return <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>;
+        case 'Video Link':
+            return <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>;
+        case 'Email Swipe':
+             return <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
+        default:
+            return null;
+    }
+}
 
   const renderPartnerDashboard = () => (
     <>
@@ -254,61 +363,70 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, users, p
         </div>
     </div>
 
-    {/* Marketing Creatives */}
+    {/* Marketing Resources */}
     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
-        <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-3">Marketing Creatives</h3>
+        <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-3">Marketing Resources</h3>
         <p className="text-gray-500 dark:text-gray-400 mb-4">Use these pre-made assets for your promotions.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {promotableProducts.flatMap(product => 
-            product.creatives.map(creative => (
-              <div key={`${product.id}-${creative.id}`} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                <img src={creative.imageUrl} alt={creative.name} className="w-full h-auto object-cover bg-gray-200 dark:bg-gray-700"/>
-                <div className="p-4">
-                  <h4 className="font-semibold text-gray-800 dark:text-white">{creative.name}</h4>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">For: {product.name}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{creative.description}</p>
-                  <button 
-                    onClick={() => setShowCodeModal(generateEmbedCode(creative, product))}
-                    className="w-full px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">
-                    Get Code
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
+          {partnerResources.map(resource => {
+                const affiliateLink = `${products.find(p => resource.productIds.includes(p.id))?.sales_page_url}?ref=${currentUser.referralCode}`;
+
+                if (resource.type === 'Image') {
+                    return (
+                        <div key={resource.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden flex flex-col">
+                            <img src={resource.content} alt={resource.name} className="w-full h-48 object-cover bg-gray-200 dark:bg-gray-700"/>
+                            <div className="p-4 flex flex-col flex-grow">
+                                <h4 className="font-semibold text-gray-800 dark:text-white">{resource.name}</h4>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 flex-grow">{resource.description}</p>
+                                <button onClick={() => setShowCodeModal(generateEmbedCode(resource))} className="w-full mt-auto px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">Get Code</button>
+                            </div>
+                        </div>
+                    )
+                }
+                if (resource.type === 'PDF Guide' || resource.type === 'Video Link') {
+                    return (
+                        <div key={resource.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col">
+                           <div className="h-48 w-full bg-gray-100 dark:bg-gray-700 rounded-md mb-4 flex items-center justify-center p-4">
+                               <ResourceIcon type={resource.type} />
+                           </div>
+                           <div className="flex-grow flex flex-col">
+                                <h4 className="font-semibold text-gray-800 dark:text-white">{resource.name}</h4>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 flex-grow">{resource.description}</p>
+                                <a href={resource.content} target="_blank" rel="noopener noreferrer" className="w-full mt-auto text-center px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">
+                                    {resource.type === 'PDF Guide' ? 'Download PDF' : 'Watch Video'}
+                                </a>
+                           </div>
+                        </div>
+                    )
+                }
+                if (resource.type === 'Email Swipe') {
+                    const isExpanded = expandedSwipe === resource.id;
+                    const emailContent = resource.content.replace(/\[Your Affiliate Link\]/g, affiliateLink);
+                    return (
+                        <div key={resource.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col">
+                            <div className="h-48 w-full bg-gray-100 dark:bg-gray-700 rounded-md mb-4 flex items-center justify-center p-4">
+                                <ResourceIcon type={resource.type} />
+                           </div>
+                            <h4 className="font-semibold text-gray-800 dark:text-white">{resource.name}</h4>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{resource.description}</p>
+                            <div className={`grid transition-all duration-500 ease-in-out ${isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                                <div className="overflow-hidden">
+                                    <pre className="text-xs whitespace-pre-wrap font-sans p-3 bg-gray-100 dark:bg-gray-900 rounded-md my-2">{emailContent}</pre>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 mt-auto">
+                                <button onClick={() => setExpandedSwipe(isExpanded ? null : resource.id)} className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg">{isExpanded ? 'Hide' : 'Show'} Email</button>
+                                <button onClick={() => navigator.clipboard.writeText(emailContent)} className="w-full px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">Copy Text</button>
+                            </div>
+                        </div>
+                    )
+                }
+                return null;
+            })
+          }
         </div>
     </div>
     
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-3">Your Referral Code</h3>
-            {isEditingCode ? (
-                <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={newReferralCode}
-                        onChange={(e) => setNewReferralCode(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-                        className="w-full flex-grow px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
-                    />
-                    <button onClick={handleSaveCode} className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600">Save</button>
-                    <button onClick={() => setIsEditingCode(false)} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
-                </div>
-            ) : (
-                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                    <span className="font-mono font-semibold text-cyan-600 dark:text-cyan-400">{currentUser.referralCode}</span>
-                    <button onClick={() => { setIsEditingCode(true); setNewReferralCode(currentUser.referralCode || ''); }} className="font-medium text-sm text-cyan-600 dark:text-cyan-500 hover:underline">Edit</button>
-                </div>
-            )}
-        </div>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-3">Your Coupon Code</h3>
-            <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-center">
-                <span className="font-mono text-2xl font-bold text-teal-500">{currentUser.couponCode || 'N/A'}</span>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Share this code with your audience! Sales made with this code are automatically tracked to you.</p>
-        </div>
-    </div>
-
     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
         <div className="flex items-start">
             <div className="flex-shrink-0">
@@ -360,12 +478,110 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ currentUser, users, p
     </>
   );
 
+  const renderDashboardContent = () => (
+      selectedPartner ? renderProductDashboard() : renderPartnerDashboard()
+  );
+
+  const renderSettingsContent = () => (
+    <div className="space-y-6">
+        <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Settings</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+                <SettingsCard 
+                    title="Profile"
+                    footer={<button onClick={handleSaveProfile} className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">Save Changes</button>}
+                >
+                    <div>
+                        <label htmlFor="affiliate-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
+                        <input type="text" id="affiliate-name" value={name} onChange={e => setName(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" />
+                    </div>
+                    <div>
+                        <label htmlFor="affiliate-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
+                        <input type="email" id="affiliate-email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" />
+                    </div>
+                </SettingsCard>
+            </div>
+            <div className="lg:col-span-2 space-y-6">
+                 <SettingsCard title="Referral & Coupon Codes">
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Your Referral Code</label>
+                         {isEditingCode ? (
+                            <div className="flex items-center gap-2 mt-1">
+                                <input
+                                    type="text"
+                                    value={newReferralCode}
+                                    onChange={(e) => setNewReferralCode(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+                                    className="w-full flex-grow px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
+                                />
+                                <button onClick={handleSaveCode} className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 text-sm">Save</button>
+                                <button onClick={() => setIsEditingCode(false)} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg text-sm">Cancel</button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-between mt-1 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                <span className="font-mono font-semibold text-cyan-600 dark:text-cyan-400">{currentUser.referralCode}</span>
+                                <button onClick={() => { setIsEditingCode(true); setNewReferralCode(currentUser.referralCode || ''); }} className="font-medium text-sm text-cyan-600 dark:text-cyan-500 hover:underline">Edit</button>
+                            </div>
+                        )}
+                     </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Your Coupon Code</label>
+                        <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <span className="font-mono text-xl font-bold text-teal-500">{currentUser.couponCode || 'N/A'}</span>
+                        </div>
+                     </div>
+                 </SettingsCard>
+                 <SettingsCard 
+                    title="Payout Settings"
+                    footer={<button onClick={handleSavePayoutSettings} className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">Save Payout Settings</button>}
+                 >
+                     <div>
+                        <label htmlFor="paypal-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">PayPal Email</label>
+                        <input type="email" id="paypal-email" value={paypalEmail} onChange={e => setPaypalEmail(e.target.value)} placeholder="your.paypal@example.com" className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Payments are sent to this PayPal account.</p>
+                     </div>
+                 </SettingsCard>
+                  <SettingsCard 
+                    title="Notifications"
+                    footer={<button onClick={handleSaveNotifications} className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">Save Notifications</button>}
+                  >
+                    <Toggle label="Email me on new sales" enabled={notifications.newSale} onToggle={(val) => setNotifications(p => ({...p, newSale: val}))} />
+                    <Toggle label="Send me a monthly performance report" enabled={notifications.monthlyReport} onToggle={(val) => setNotifications(p => ({...p, monthlyReport: val}))} />
+                </SettingsCard>
+            </div>
+        </div>
+    </div>
+  );
+
   return (
     <>
       {showCodeModal && <GetCodeModal code={showCodeModal} onClose={() => setShowCodeModal(null)} />}
       <div className="flex flex-col h-full">
+         <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+            <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                <button
+                    onClick={() => setActiveTab('dashboard')}
+                    className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
+                        activeTab === 'dashboard'
+                        ? 'border-cyan-500 text-cyan-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600'
+                    }`}
+                >
+                    Dashboard
+                </button>
+                 <button
+                    onClick={() => setActiveTab('settings')}
+                    className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
+                        activeTab === 'settings'
+                        ? 'border-cyan-500 text-cyan-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600'
+                    }`}
+                >
+                    Settings
+                </button>
+            </nav>
+        </div>
         <main className="flex-1 overflow-y-auto">
-          {selectedPartner ? renderProductDashboard() : renderPartnerDashboard()}
+          {activeTab === 'dashboard' ? renderDashboardContent() : renderSettingsContent()}
         </main>
       </div>
     </>

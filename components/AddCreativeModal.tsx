@@ -1,116 +1,115 @@
-import React, { useState, useEffect } from 'react';
-import { Creative } from '../data/mockData';
+import React, { useState, useEffect, useRef } from 'react';
+import { Resource, ResourceType, Product, User } from '../data/mockData';
 
-interface AddCreativeModalProps {
+interface AddResourceModalProps {
   onClose: () => void;
-  onSave: (creative: Creative) => void;
-  creativeToEdit: Creative | null;
-  nextId: number;
+  onSave: (resource: Partial<Resource>, id?: number) => void;
+  resourceToEdit: Resource | null;
+  products: Product[];
+  currentUser: User;
 }
 
-type UploadMethod = 'url' | 'upload';
-
-const AddCreativeModal: React.FC<AddCreativeModalProps> = ({ onClose, onSave, creativeToEdit, nextId }) => {
+const AddResourceModal: React.FC<AddResourceModalProps> = ({ onClose, onSave, resourceToEdit, products, currentUser }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [type, setType] = useState<ResourceType>('Image');
+  const [content, setContent] = useState('');
+  const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
   const [error, setError] = useState('');
-  const [uploadMethod, setUploadMethod] = useState<UploadMethod>('url');
-  const [filePreview, setFilePreview] = useState<string | null>(null);
 
-  const isEditMode = !!creativeToEdit;
+  const isEditMode = !!resourceToEdit;
 
   useEffect(() => {
     if (isEditMode) {
-      setName(creativeToEdit.name);
-      setDescription(creativeToEdit.description);
-      setImageUrl(creativeToEdit.imageUrl);
-      setFilePreview(creativeToEdit.imageUrl);
+      setName(resourceToEdit.name);
+      setDescription(resourceToEdit.description);
+      setType(resourceToEdit.type);
+      setContent(resourceToEdit.content);
+      setSelectedProducts(resourceToEdit.productIds);
     }
-  }, [creativeToEdit, isEditMode]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const previewUrl = URL.createObjectURL(file);
-      setFilePreview(previewUrl);
-      setImageUrl(previewUrl); // For simulation, we'll use the blob URL
-    }
-  };
+  }, [resourceToEdit, isEditMode]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !imageUrl) {
-      setError('Name and an image are required.');
+    if (!name || !content || !type) {
+      setError('Name, type, and content are required.');
       return;
     }
     setError('');
 
-    const creativeData: Creative = {
-        id: creativeToEdit ? creativeToEdit.id : nextId,
+    const resourceData: Partial<Resource> = {
+        user_id: currentUser.id,
         name,
         description,
-        imageUrl,
+        type,
+        content,
+        productIds: selectedProducts,
     };
     
-    onSave(creativeData);
+    onSave(resourceData, resourceToEdit?.id);
     onClose();
   };
-  
-  const finalImageUrl = uploadMethod === 'upload' ? filePreview : imageUrl;
+
+  const getContentLabel = () => {
+    switch(type) {
+        case 'Image': return 'Image URL';
+        case 'PDF Guide': return 'PDF File URL';
+        case 'Video Link': return 'Video URL (e.g., YouTube)';
+        case 'Email Swipe': return 'Email Body Text';
+        default: return 'Content';
+    }
+  }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center" onClick={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-            {isEditMode ? 'Edit Creative' : 'Upload New Creative'}
-        </h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+                {isEditMode ? 'Edit Resource' : 'Add New Resource'}
+            </h2>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
             <div>
-                <label htmlFor="creative-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Creative Name</label>
-                <input type="text" id="creative-name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" required />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Resource Type</label>
+                <select value={type} onChange={(e) => setType(e.target.value as ResourceType)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm">
+                    <option value="Image">Image (Banner, Social Graphic)</option>
+                    <option value="PDF Guide">PDF Guide (Lead Magnet)</option>
+                    <option value="Video Link">Video Link</option>
+                    <option value="Email Swipe">Email Swipe</option>
+                </select>
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm" required />
             </div>
              <div>
-                <label htmlFor="creative-desc" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
-                <textarea id="creative-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"></textarea>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm"></textarea>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Image Source</label>
-              <div className="mt-1 flex rounded-md shadow-sm">
-                <button type="button" onClick={() => setUploadMethod('url')} className={`px-4 py-2 rounded-l-md border ${uploadMethod === 'url' ? 'bg-cyan-500 text-white border-cyan-500' : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600'}`}>From URL</button>
-                <button type="button" onClick={() => setUploadMethod('upload')} className={`px-4 py-2 rounded-r-md border-t border-b border-r ${uploadMethod === 'upload' ? 'bg-cyan-500 text-white border-cyan-500' : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600'}`}>Upload File</button>
-              </div>
+             <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{getContentLabel()}</label>
+                {type === 'Email Swipe' ? (
+                     <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={8} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm" required></textarea>
+                ) : (
+                    <input type="url" value={content} onChange={(e) => setContent(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm" required placeholder="https://..." />
+                )}
             </div>
-
-            {uploadMethod === 'url' ? (
-              <div>
-                  <label htmlFor="creative-image" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Image URL</label>
-                  <input type="url" id="creative-image" value={imageUrl} onChange={(e) => {setImageUrl(e.target.value); setFilePreview(e.target.value);}} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" required placeholder="https://..." />
-              </div>
-            ) : (
-              <div>
-                <label htmlFor="creative-file" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Upload Image</label>
-                <input type="file" id="creative-file" onChange={handleFileChange} accept="image/*" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"/>
-              </div>
-            )}
-
-            {finalImageUrl && (
-              <div className="mt-2">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Preview:</p>
-                <img src={finalImageUrl} alt="Creative preview" className="mt-1 max-h-40 w-auto rounded-md border border-gray-200 dark:border-gray-700"/>
-              </div>
-            )}
+             <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Assign to Products (Optional)</label>
+                <select multiple value={selectedProducts.map(String)} onChange={(e) => setSelectedProducts(Array.from(e.target.selectedOptions, option => Number(option.value)))} className="mt-1 block w-full h-32 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm">
+                    {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+            </div>
           
             {error && <p className="text-red-500 text-sm">{error}</p>}
-            <div className="flex justify-end space-x-3 pt-2">
-                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">{isEditMode ? 'Save Changes' : 'Add Creative'}</button>
-            </div>
         </form>
+        <div className="p-6 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">Cancel</button>
+            <button type="submit" formNoValidate onClick={handleSubmit} className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">{isEditMode ? 'Save Changes' : 'Add Resource'}</button>
+        </div>
       </div>
     </div>
   );
 };
 
-export default AddCreativeModal;
+export default AddResourceModal;

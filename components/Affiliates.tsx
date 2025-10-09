@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo } from 'react';
 import { User, Payout } from '../data/mockData';
 import { Plan } from '../src/App';
@@ -8,15 +6,7 @@ import AddAffiliateModal from './AddAffiliateModal';
 import ConfirmationModal from './ConfirmationModal';
 import InviteAffiliateModal from './InviteAffiliateModal';
 import { supabase } from '../src/lib/supabaseClient';
-
-interface AffiliatesProps {
-    affiliates: User[];
-    payouts: Payout[];
-    showToast: (message: string) => void;
-    currentPlan: Plan;
-    currentUser: User;
-    refetchData: () => void;
-}
+import EmptyState from './EmptyState';
 
 const getStatusBadge = (status: User['status']) => {
   if (!status) return '';
@@ -31,6 +21,29 @@ const getStatusBadge = (status: User['status']) => {
   }
 };
 
+const SortIcon: React.FC<{ direction: 'ascending' | 'descending' | 'none' }> = ({ direction }) => {
+    if (direction === 'none') {
+        return <svg className="h-4 w-4 inline-block ml-1 text-gray-400 group-hover:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" /></svg>;
+    }
+    return direction === 'ascending' ? (
+        <svg className="h-4 w-4 inline-block ml-1 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+    ) : (
+        <svg className="h-4 w-4 inline-block ml-1 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7 7" /></svg>
+    );
+};
+
+type SortableKey = 'name' | 'sales' | 'commission';
+
+// FIX: Define AffiliatesProps interface
+interface AffiliatesProps {
+  affiliates: User[];
+  payouts: Payout[];
+  showToast: (message: string) => void;
+  currentPlan: Plan;
+  currentUser: User;
+  refetchData: () => void;
+}
+
 const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, payouts, showToast, currentPlan, currentUser, refetchData }) => {
     const [selectedAffiliate, setSelectedAffiliate] = useState<User | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -40,6 +53,8 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, payouts, showToast,
     const [editingAffiliate, setEditingAffiliate] = useState<User | null>(null);
     const [affiliateToDelete, setAffiliateToDelete] = useState<User | null>(null);
     const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
+    const [sortConfig, setSortConfig] = useState<{ key: SortableKey; direction: 'ascending' | 'descending' } | null>({ key: 'commission', direction: 'descending' });
+
 
     const limitReached = affiliates.length >= currentPlan.limits.affiliates;
     const invitationLink = `${window.location.origin}?ref=${currentUser.id}`;
@@ -174,6 +189,52 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, payouts, showToast,
                 );
             });
     }, [affiliates, statusFilter, searchQuery]);
+
+    const sortedAffiliates = useMemo(() => {
+        let sortableItems = [...filteredAffiliates];
+        if (sortConfig !== null) {
+            sortableItems.sort((a, b) => {
+                let aValue: string | number, bValue: string | number;
+
+                if (sortConfig.key === 'name') {
+                    aValue = a.name.toLowerCase();
+                    bValue = b.name.toLowerCase();
+                } else {
+                    aValue = a[sortConfig.key] || 0;
+                    bValue = b[sortConfig.key] || 0;
+                }
+
+                if (aValue < bValue) {
+                    return sortConfig.direction === 'ascending' ? -1 : 1;
+                }
+                if (aValue > bValue) {
+                    return sortConfig.direction === 'ascending' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [filteredAffiliates, sortConfig]);
+
+    const requestSort = (key: SortableKey) => {
+        let direction: 'ascending' | 'descending' = 'ascending';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const SortableHeader: React.FC<{ label: string; sortKey: SortableKey; }> = ({ label, sortKey }) => {
+        const direction = sortConfig?.key === sortKey ? sortConfig.direction : 'none';
+        return (
+            <th scope="col" className="px-6 py-3 cursor-pointer group hover:bg-gray-100 dark:hover:bg-gray-600/50 transition-colors" onClick={() => requestSort(sortKey)}>
+                <div className="flex items-center">
+                    {label}
+                    <SortIcon direction={direction} />
+                </div>
+            </th>
+        );
+    };
     
     if (selectedAffiliate) {
         const affiliatePayouts = payouts.filter(p => p.user_id === selectedAffiliate.id);
@@ -258,18 +319,18 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, payouts, showToast,
         <table className="w-full text-left text-sm text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
-              <th scope="col" className="px-6 py-3">Affiliate</th>
-              <th scope="col" className="px-6 py-3">Sales</th>
-              <th scope="col" className="px-6 py-3">Commission</th>
+              <SortableHeader label="Affiliate" sortKey="name" />
+              <SortableHeader label="Sales" sortKey="sales" />
+              <SortableHeader label="Commission" sortKey="commission" />
               <th scope="col" className="px-6 py-3">Coupon Code</th>
               <th scope="col" className="px-6 py-3">Status</th>
               <th scope="col" className="px-6 py-3 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredAffiliates.length > 0 ? (
-                filteredAffiliates.map((affiliate) => (
-                <tr key={affiliate.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+            {sortedAffiliates.length > 0 ? (
+                sortedAffiliates.map((affiliate) => (
+                <tr key={affiliate.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 animate-fade-in-up">
                     <th scope="row" className="flex items-center px-6 py-4 text-gray-900 whitespace-nowrap dark:text-white">
                     <img className="w-10 h-10 rounded-full" src={affiliate.avatar} alt={`${affiliate.name} image`} />
                     <div className="pl-3">
@@ -303,8 +364,13 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, payouts, showToast,
                 ))
             ) : (
                 <tr>
-                    <td colSpan={6} className="text-center py-10 text-gray-500 dark:text-gray-400">
-                        No affiliates found.
+                    <td colSpan={6} className="py-4">
+                        <EmptyState
+                            icon={<UsersIcon />}
+                            title={searchQuery || statusFilter !== 'All' ? "No Affiliates Found" : "You haven't added any affiliates yet"}
+                            message={searchQuery || statusFilter !== 'All' ? "Try adjusting your search or filters to find what you're looking for." : "Get started by inviting your first affiliate or sharing your signup link."}
+                            actionButton={!searchQuery && statusFilter === 'All' ? { text: 'Invite an Affiliate', onClick: () => setIsInviteModalOpen(true) } : undefined}
+                        />
                     </td>
                 </tr>
             )}
@@ -315,5 +381,7 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, payouts, showToast,
     </div>
   );
 };
+
+const UsersIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.653-.122-1.28-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.653.122-1.28.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
 
 export default Affiliates;

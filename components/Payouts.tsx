@@ -3,6 +3,7 @@ import { Payout, User, UserSettings } from '../data/mockData';
 import PayoutDetailModal from './PayoutDetailModal';
 import { Page } from '../src/App';
 import { supabase } from '../src/lib/supabaseClient';
+import EmptyState from './EmptyState';
 
 interface PayoutsProps {
   payouts: Payout[];
@@ -118,31 +119,36 @@ const Payouts: React.FC<PayoutsProps> = ({ payouts, userSettings, setActivePage,
               </tr>
             </thead>
             <tbody>
-              {activePayouts.map((payout) => (
-                <tr key={payout.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer" onClick={() => setSelectedPayout(payout)}>
-                  <td scope="row" className="flex items-center px-6 py-4 text-gray-900 whitespace-nowrap dark:text-white">
-                    <img className="w-10 h-10 rounded-full" src={payout.affiliate_avatar} alt={`${payout.affiliate_name} image`} />
-                    <div className="pl-3">
-                      <div className="text-base font-semibold">{payout.affiliate_name}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">${payout.amount.toLocaleString()}</td>
-                  <td className="px-6 py-4">{payout.period}</td>
-                  <td className="px-6 py-4">{payout.due_date}</td>
-                  <td className="px-6 py-4">
-                    <span className={`text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full ${getStatusBadge(payout.status)}`}>
-                      {payout.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => setSelectedPayout(payout)} className="font-medium text-cyan-600 dark:text-cyan-500 hover:underline">View Details</button>
-                  </td>
-                </tr>
-              ))}
-               {activePayouts.length === 0 && (
+              {activePayouts.length > 0 ? (
+                activePayouts.map((payout) => (
+                    <tr key={payout.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer animate-fade-in-up" onClick={() => setSelectedPayout(payout)}>
+                    <td scope="row" className="flex items-center px-6 py-4 text-gray-900 whitespace-nowrap dark:text-white">
+                        <img className="w-10 h-10 rounded-full" src={payout.affiliate_avatar} alt={`${payout.affiliate_name} image`} />
+                        <div className="pl-3">
+                        <div className="text-base font-semibold">{payout.affiliate_name}</div>
+                        </div>
+                    </td>
+                    <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">${payout.amount.toLocaleString()}</td>
+                    <td className="px-6 py-4">{payout.period}</td>
+                    <td className="px-6 py-4">{payout.due_date}</td>
+                    <td className="px-6 py-4">
+                        <span className={`text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full ${getStatusBadge(payout.status)}`}>
+                        {payout.status}
+                        </span>
+                    </td>
+                    <td className="px-6 py-4 text-center" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => setSelectedPayout(payout)} className="font-medium text-cyan-600 dark:text-cyan-500 hover:underline">View Details</button>
+                    </td>
+                    </tr>
+                ))
+              ) : (
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-gray-500 dark:text-gray-400">
-                    No payouts in this category.
+                  <td colSpan={6} className="py-4">
+                    <EmptyState
+                        icon={<CreditCardIcon />}
+                        title={activeTab === 'due' ? "All caught up!" : "No payout history"}
+                        message={activeTab === 'due' ? "There are no pending payouts for your affiliates." : "Once you pay your affiliates, the records will appear here."}
+                    />
                   </td>
                 </tr>
               )}
@@ -154,5 +160,7 @@ const Payouts: React.FC<PayoutsProps> = ({ payouts, userSettings, setActivePage,
     </>
   );
 };
+
+const CreditCardIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H4a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>;
 
 export default Payouts;

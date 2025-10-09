@@ -24,6 +24,11 @@ export interface User {
   referralCode?: string;
   couponCode?: string;
   partnerIds?: string[];
+  paypal_email?: string;
+  notifications?: {
+      newSale: boolean;
+      monthlyReport: boolean;
+  };
 }
 
 export interface CommissionTier {
@@ -37,11 +42,18 @@ export interface PerformanceBonus {
     type: 'sales' | 'clicks';
 }
 
-export interface Creative {
+export type ResourceType = 'Image' | 'PDF Guide' | 'Video Link' | 'Email Swipe';
+
+export interface Resource {
     id: number;
+    user_id: string;
+    type: ResourceType;
     name: string;
     description: string;
-    imageUrl: string;
+    content: string; // URL for Image/PDF/Video, text for Email
+    thumbnailUrl?: string;
+    productIds: number[];
+    creation_date: string;
 }
 
 export interface Product {
@@ -54,7 +66,6 @@ export interface Product {
     clicks: number;
     commission_tiers: CommissionTier[];
     bonuses: PerformanceBonus[];
-    creatives: Creative[];
     creation_date: string; // ISO format date string e.g., "2023-11-20"
 }
 
@@ -141,16 +152,82 @@ export const users: User[] = [
     { id: MOCK_JENNA_ID, name: 'Jenna Smith', email: 'jenna.s@example.com', avatar: `https://i.pravatar.cc/150?u=jenna.s@example.com`, roles: ['creator', 'affiliate'], currentPlan: 'Growth Plan', joinDate: daysAgo(180), status: 'Active', company_name: 'Jenna\'s Coaching', billingCycle: 'monthly', onboardingStepCompleted: 5, partnerIds: [MOCK_ALEX_ID], referralCode: 'JENNA-S', couponCode: 'JENNA10' },
     { id: MOCK_EVA_ID, name: 'Eva Gardner', email: 'eva.gardner@example.com', avatar: `https://i.pravatar.cc/150?u=eva.gardner@example.com`, roles: ['creator'], currentPlan: 'Starter Plan', joinDate: daysAgo(45), status: 'Active', trialEndsAt: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(), company_name: 'Eva\'s Art', onboardingStepCompleted: 5 },
     { id: MOCK_ONBOARDING_ID, name: 'Onboarding Tester', email: 'onboarding.tester@example.com', avatar: `https://i.pravatar.cc/150?u=onboarding.tester@example.com`, roles: ['creator'], currentPlan: 'Starter Plan', joinDate: daysAgo(1), status: 'Active', trialEndsAt: new Date(new Date().setDate(new Date().getDate() + 13)).toISOString(), company_name: 'Setup Co.', onboardingStepCompleted: 0 },
-    { id: MOCK_ELENA_ID, name: 'Elena Rodriguez', email: 'elena.r@example.com', avatar: `https://i.pravatar.cc/150?u=elena.r@example.com`, roles: ['affiliate'], joinDate: daysAgo(90), status: 'Active', partnerIds: [MOCK_JENNA_ID], sales: 15, commission: 1498.5, clicks: 350, conversionRate: 4.29, referralCode: 'ELENA-R', couponCode: 'ELENA15' },
+    { id: MOCK_ELENA_ID, name: 'Elena Rodriguez', email: 'elena.r@example.com', avatar: `https://i.pravatar.cc/150?u=elena.r@example.com`, roles: ['affiliate'], joinDate: daysAgo(90), status: 'Active', partnerIds: [MOCK_JENNA_ID], sales: 15, commission: 1498.5, clicks: 350, conversionRate: 4.29, referralCode: 'ELENA-R', couponCode: 'ELENA15', paypal_email: 'elena.paypal@example.com' },
     { id: MOCK_MARK_ID, name: 'Mark Brown', email: 'mark.b@example.com', avatar: `https://i.pravatar.cc/150?u=mark.b@example.com`, roles: ['affiliate'], joinDate: daysAgo(60), status: 'Active', partnerIds: [MOCK_JENNA_ID], sales: 8, commission: 799.2, clicks: 180, conversionRate: 4.44, referralCode: 'MARK-B', couponCode: 'MARK10' },
     { id: MOCK_SARA_ID, name: 'Sara Khan', email: 'sara.k@example.com', avatar: `https://i.pravatar.cc/150?u=sara.k@example.com`, roles: ['affiliate'], joinDate: daysAgo(10), status: 'Pending', partnerIds: [MOCK_JENNA_ID], sales: 0, commission: 0, clicks: 12, conversionRate: 0, referralCode: 'SARA-K' },
 ];
 
 export const products: Product[] = [
-  { id: 1, user_id: MOCK_JENNA_ID, name: 'Ultimate Productivity Course', price: 499, sales_page_url: 'https://example.com/productivity', sales_count: 20, clicks: 450, commission_tiers: [{ threshold: 0, rate: 20 }, { threshold: 10, rate: 25 }], bonuses: [{ goal: 20, reward: 250, type: 'sales' }], creatives: [{id: 1, name: 'Banner Ad 1', description: 'A great banner for your blog sidebar.', imageUrl: 'https://i.imgur.com/L8VmTak.png'}], creation_date: daysAgo(150) },
-  { id: 2, user_id: MOCK_JENNA_ID, name: 'Social Media Mastery', price: 299, sales_page_url: 'https://example.com/social', sales_count: 3, clicks: 80, commission_tiers: [{ threshold: 0, rate: 30 }], bonuses: [], creatives: [{id: 2, name: 'Instagram Story Graphic', description: 'Perfect for sharing on IG.', imageUrl: 'https://i.imgur.com/L8VmTak.png'}], creation_date: daysAgo(30) },
-  { id: 3, user_id: MOCK_ALEX_ID, name: 'Beginner\'s Guide to Investing', price: 199, sales_page_url: 'https://example.com/investing', sales_count: 5, clicks: 120, commission_tiers: [{ threshold: 0, rate: 40 }], bonuses: [], creatives: [], creation_date: daysAgo(4) },
+  { id: 1, user_id: MOCK_JENNA_ID, name: 'Ultimate Productivity Course', price: 499, sales_page_url: 'https://example.com/productivity', sales_count: 20, clicks: 450, commission_tiers: [{ threshold: 0, rate: 20 }, { threshold: 10, rate: 25 }], bonuses: [{ goal: 20, reward: 250, type: 'sales' }], creation_date: daysAgo(150) },
+  { id: 2, user_id: MOCK_JENNA_ID, name: 'Social Media Mastery', price: 299, sales_page_url: 'https://example.com/social', sales_count: 3, clicks: 80, commission_tiers: [{ threshold: 0, rate: 30 }], bonuses: [], creation_date: daysAgo(30) },
+  { id: 3, user_id: MOCK_ALEX_ID, name: 'Beginner\'s Guide to Investing', price: 199, sales_page_url: 'https://example.com/investing', sales_count: 5, clicks: 120, commission_tiers: [{ threshold: 0, rate: 40 }], bonuses: [], creation_date: daysAgo(4) },
 ];
+
+export const resources: Resource[] = [
+    {
+        id: 1,
+        user_id: MOCK_JENNA_ID,
+        type: 'Image',
+        name: 'Banner Ad 1',
+        description: 'A great banner for your blog sidebar.',
+        content: 'https://i.imgur.com/L8VmTak.png',
+        productIds: [1],
+        creation_date: daysAgo(140),
+    },
+    {
+        id: 2,
+        user_id: MOCK_JENNA_ID,
+        type: 'Image',
+        name: 'Instagram Story Graphic',
+        description: 'Perfect for sharing on IG.',
+        content: 'https://i.imgur.com/4a0x2fA.png',
+        productIds: [2],
+        creation_date: daysAgo(25),
+    },
+    {
+        id: 3,
+        user_id: MOCK_JENNA_ID,
+        type: 'PDF Guide',
+        name: '5 Productivity Hacks PDF',
+        description: 'A lead magnet to attract buyers for the productivity course.',
+        content: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', // Dummy link
+        productIds: [1],
+        creation_date: daysAgo(100),
+    },
+    {
+        id: 4,
+        user_id: MOCK_JENNA_ID,
+        type: 'Email Swipe',
+        name: '"Why I Love This Course" Email',
+        description: 'A personal-style email affiliates can send to their list.',
+        content: `Subject: The one course that changed my productivity game...
+
+Hey [Name],
+
+I wanted to share something that's been a total game-changer for me lately. It's the "Ultimate Productivity Course" by Jenna Smith.
+
+I was struggling with [mention a pain point], but this course gave me a simple system to follow. Now I'm [mention a benefit].
+
+If you're looking to achieve the same, I highly recommend checking it out: [Your Affiliate Link]
+
+Best,
+[Your Name]`,
+        productIds: [1, 2], // Assign to both for demo
+        creation_date: daysAgo(90),
+    },
+     {
+        id: 5,
+        user_id: MOCK_ALEX_ID,
+        type: 'Video Link',
+        name: 'Intro to Investing (YouTube)',
+        description: 'A short video explaining the benefits of the course.',
+        content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // a classic
+        thumbnailUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+        productIds: [3],
+        creation_date: daysAgo(3),
+    }
+];
+
 
 export const salesHistory: Sale[] = [
     { id: 1, productId: 1, productName: 'Ultimate Productivity Course', saleAmount: 499, commissionAmount: 99.8, date: daysAgo(45), status: 'Cleared' },
@@ -199,7 +276,7 @@ export const userSettings: UserSettings = {
     },
     integrations: {
         stripe: 'Disconnected',
-        kajabi: 'Disconnected',
+        kajabi: 'Connected',
         thrivecart: 'Disconnected',
     }
 };
