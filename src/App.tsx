@@ -74,7 +74,7 @@ export type Plan = {
     };
 };
 
-const useMockData = !(process as any).env.SUPABASE_URL || !(process as any).env.SUPABASE_ANON_KEY || (process as any).env.SUPABASE_URL === 'https://placeholder.supabase.co';
+const useMockData = !process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_URL === 'https://placeholder.supabase.co';
 
 const getStoredPlatformSettings = (): PlatformSettingsType => {
     try {
@@ -552,15 +552,15 @@ const App: React.FC = () => {
     }
     
     if (user) {
-        const supabaseUrl = (process as any).env.SUPABASE_URL;
+        const supabaseUrl = process.env.VITE_SUPABASE_URL;
         if (!supabaseUrl) {
-            console.error("Supabase URL is missing. Please set the SUPABASE_URL environment variable.");
+            console.error("Supabase URL is missing. Please set the VITE_SUPABASE_URL environment variable.");
             return { success: false, error: "Application configuration error: Missing Supabase URL." };
         }
 
-        const supabaseAnonKey = (process as any).env.SUPABASE_ANON_KEY;
+        const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
         if (!supabaseAnonKey) {
-            console.error("Supabase anonymous key is missing. Please set the SUPABASE_ANON_KEY environment variable.");
+            console.error("Supabase anonymous key is missing. Please set the VITE_SUPABASE_ANON_KEY environment variable.");
             return { success: false, error: "Application configuration error: Missing Supabase anonymous key." };
         }
 
