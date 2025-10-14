@@ -1,19 +1,23 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// The original code was throwing an error when these environment variables were not set,
-// causing a white screen. We are now using placeholder values to allow the app to render.
-// In a real production environment, these should be replaced with actual Supabase credentials
-// via environment variables.
-const supabaseUrl = window.process.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = window.process.env.VITE_SUPABASE_ANON_KEY || 'placeholder.anon.key';
+// Safely access environment variables to prevent crashing in browser environments.
+const safeProcessEnv = (typeof process !== 'undefined' && process.env) ? process.env : {};
+const supabaseUrl = safeProcessEnv.VITE_SUPABASE_URL;
+const supabaseAnonKey = safeProcessEnv.VITE_SUPABASE_ANON_KEY;
 
-if (supabaseUrl === 'https://placeholder.supabase.co') {
-  console.warn("Supabase URL is not set. Using a placeholder. The application will not connect to a database.");
+
+if (!supabaseUrl) {
+  console.warn("Supabase URL is not set. The application will run in demo mode.");
 }
 
-if (supabaseAnonKey === 'placeholder.anon.key') {
-  console.warn("Supabase Anon Key is not set. Using a placeholder. The application will not connect to a database.");
+if (!supabaseAnonKey) {
+  console.warn("Supabase Anon Key is not set. The application will run in demo mode.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Provide dummy values when env vars are missing to prevent the client from throwing an error.
+// The app's logic (useMockData) will prevent any actual calls from being made with these dummy credentials.
+export const supabase = createClient(
+  supabaseUrl || 'http://localhost:54321', 
+  supabaseAnonKey || 'dummy-key-for-local-development'
+);

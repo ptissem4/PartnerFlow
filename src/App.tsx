@@ -29,6 +29,7 @@ import OnboardingModal from '../components/OnboardingModal';
 import Communicate from '../components/Communicate';
 import NotFoundPage from '../components/NotFoundPage';
 import LoadingSpinner from '../components/LoadingSpinner';
+import AiAssistant from '../components/AiAssistant';
 import { 
     planDetails as initialPlanDetails,
     platformSettings as initialPlatformSettings,
@@ -75,7 +76,8 @@ export type Plan = {
     };
 };
 
-const useMockData = !window.process.env.VITE_SUPABASE_URL || !window.process.env.VITE_SUPABASE_ANON_KEY || window.process.env.VITE_SUPABASE_URL === 'https://placeholder.supabase.co';
+const safeProcessEnv = (typeof process !== 'undefined' && process.env) ? process.env : {};
+const useMockData = !safeProcessEnv.VITE_SUPABASE_URL || !safeProcessEnv.VITE_SUPABASE_ANON_KEY;
 
 const getStoredPlatformSettings = (): PlatformSettingsType => {
     try {
@@ -553,13 +555,13 @@ const App: React.FC = () => {
     }
     
     if (user) {
-        const supabaseUrl = window.process.env.VITE_SUPABASE_URL;
+        const supabaseUrl = safeProcessEnv.VITE_SUPABASE_URL;
         if (!supabaseUrl) {
             console.error("Supabase URL is missing. Please set the VITE_SUPABASE_URL environment variable.");
             return { success: false, error: "Application configuration error: Missing Supabase URL." };
         }
 
-        const supabaseAnonKey = window.process.env.VITE_SUPABASE_ANON_KEY;
+        const supabaseAnonKey = safeProcessEnv.VITE_SUPABASE_ANON_KEY;
         if (!supabaseAnonKey) {
             console.error("Supabase anonymous key is missing. Please set the VITE_SUPABASE_ANON_KEY environment variable.");
             return { success: false, error: "Application configuration error: Missing Supabase anonymous key." };
@@ -981,6 +983,13 @@ const App: React.FC = () => {
                     </div>
                 </main>
             </div>
+             {currentUser.roles.includes('creator') && !isSuperAdmin && (
+                <AiAssistant 
+                    affiliates={users}
+                    products={products}
+                    payouts={payouts}
+                />
+             )}
             {isOnboarding && <OnboardingModal 
                 currentUser={currentUser}
                 onStepChange={handleOnboardingStepChange}

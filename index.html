@@ -40,29 +40,6 @@
         },
       }
     </script>
-    <script>
-      // Polyfill process.env for browser environments without a build step.
-      // Your hosting provider (e.g., Vercel) will replace the %%VARIABLES%%
-      // with the actual values you've set in your project settings.
-      const env = {
-        VITE_SUPABASE_URL: "%%VITE_SUPABASE_URL%%",
-        VITE_SUPABASE_ANON_KEY: "%%VITE_SUPABASE_ANON_KEY%%",
-        // The Gemini guidelines require using the specific name `API_KEY`.
-        // We map your `VITE_GEMINI_API_KEY` variable to it here.
-        API_KEY: "%%VITE_GEMINI_API_KEY%%"
-      };
-
-      // If the build process doesn't replace the placeholders, they become literal strings.
-      // In that case, we treat them as undefined so downstream code can use fallbacks.
-      Object.keys(env).forEach(key => {
-        const value = env[key];
-        if (typeof value === 'string' && value.startsWith('%%') && value.endsWith('%%')) {
-          env[key] = undefined;
-        }
-      });
-      
-      window.process = { env };
-    </script>
 <style>
   @media print {
     body * {
@@ -114,17 +91,17 @@
 {
   "imports": {
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "recharts": "https://aistudiocdn.com/recharts@^3.2.1",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.23.0",
     "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.75.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.2.1"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
   }
 }
 </script>
 </head>
   <body class="bg-gray-100 dark:bg-gray-900">
     <div id="root"></div>
-    <script type="module" src="/src/index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>

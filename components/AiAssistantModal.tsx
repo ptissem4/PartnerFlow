@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState } from 'react';
 import { GoogleGenAI } from '@google/genai';
 
@@ -33,6 +30,13 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ onClose, onApplyTex
         setIsLoading(true);
         setGeneratedText('');
 
+        const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
+        if (!apiKey) {
+            setError('The AI Assistant has not been configured. An API key is missing.');
+            setIsLoading(false);
+            return;
+        }
+
         const prompt = `You are an expert marketing copywriter specializing in affiliate communications for online creators. 
         Your task is to write a message to affiliates.
 
@@ -55,12 +59,6 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ onClose, onApplyTex
         I'm thrilled to announce...`;
 
         try {
-            const apiKey = window.process.env.API_KEY;
-            if (!apiKey) {
-                setError("Gemini API key is missing. Please set the API_KEY environment variable.");
-                setIsLoading(false);
-                return;
-            }
             const ai = new GoogleGenAI({ apiKey });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
