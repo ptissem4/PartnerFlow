@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { planDetails, User, PlatformSettings as PlatformSettingsType } from '../data/mockData';
+import AppShowcase from './AppShowcase';
+import DashboardScreenshot from './DashboardScreenshot';
+import AffiliatesScreenshot from './AffiliatesScreenshot';
+import ReportsScreenshot from './ReportsScreenshot';
+
 
 interface LandingPageProps {
   currentUser?: User | null;
@@ -81,41 +86,22 @@ const FaqItem: React.FC<{ question: string; children: React.ReactNode }> = ({ qu
     );
 };
 
-const DashboardIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>;
-const UsersIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.653-.122-1.28-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.653.122-1.28.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
-const ChartBarIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>;
+const HowItWorksStep: React.FC<{ icon: React.ReactNode, title: string, children: React.ReactNode }> = ({ icon, title, children }) => (
+    <div className="bg-white dark:bg-gray-800/50 p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 text-center">
+        <div className="flex justify-center items-center mb-4 h-16 w-16 rounded-full bg-cyan-100 dark:bg-cyan-900/50 mx-auto">
+            {icon}
+        </div>
+        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{children}</p>
+    </div>
+);
 
-
-const features = [
-    {
-        id: 'dashboard',
-        title: 'Your Mission Control',
-        description: 'Get a bird\'s-eye view of your entire affiliate program. Track clicks, sales, and commissions in real-time with a clear, concise, and actionable dashboard.',
-        imageUrl: 'https://i.imgur.com/5zV8V18.png',
-        icon: <DashboardIcon />
-    },
-    {
-        id: 'affiliates',
-        title: 'Powerful Affiliate Management',
-        description: 'Effortlessly manage your partners. Invite new affiliates with a unique link, approve applications, and track individual performance.',
-        imageUrl: 'https://i.imgur.com/OQSv5xN.png',
-        icon: <UsersIcon />
-    },
-    {
-        id: 'reports',
-        title: 'Insightful, Actionable Reports',
-        description: 'Dive deep into your data. Understand which products and partners are driving the most growth and make data-driven decisions to scale your program.',
-        imageUrl: 'https://i.imgur.com/pYVv8aM.png',
-        icon: <ChartBarIcon />
-    }
-];
 
 const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogin, onNavigateToRegister, onNavigateToDashboard, onNavigateToPartnerflowSignup, onNavigateToMarketplace, platformSettings }) => {
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
     const [newsletterEmail, setNewsletterEmail] = useState('');
     const [newsletterError, setNewsletterError] = useState('');
     const [isSubscribed, setIsSubscribed] = useState(false);
-    const [activeFeature, setActiveFeature] = useState('dashboard');
     const plans = Object.values(planDetails);
     
     const [isAnnouncementVisible, setIsAnnouncementVisible] = useState(false);
@@ -130,8 +116,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogi
         sessionStorage.setItem('announcementDismissed', 'true');
         setIsAnnouncementVisible(false);
     };
-
-    const currentFeature = features.find(f => f.id === activeFeature) || features[0];
 
     const handleNewsletterSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -200,73 +184,136 @@ const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogi
                             <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-10">
                                 Stop drowning in spreadsheets. PartnerFlow is the all-in-one platform for creators to launch, manage, and scale their affiliate programs with ease.
                             </p>
-                            <div className="flex justify-center items-center gap-4">
+                            <div className="flex justify-center items-center gap-4 flex-col sm:flex-row">
                                 <button onClick={onNavigateToRegister} className="px-8 py-4 bg-cyan-500 text-white font-bold rounded-lg shadow-xl hover:bg-cyan-600 transform hover:scale-105 transition-transform duration-300">
                                     Start Your 14-Day Free Trial &rarr;
                                 </button>
                             </div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">No credit card required.</p>
                         </FadeIn>
 
                         <FadeIn className="mt-20 max-w-5xl mx-auto">
-                            <div className="relative mx-auto border-gray-800 dark:border-gray-800 bg-gray-800 border-[8px] rounded-t-xl h-[172px] max-w-[301px] md:h-[294px] md:max-w-[512px]">
-                                <div className="rounded-lg overflow-hidden h-[156px] md:h-[278px] bg-white dark:bg-gray-800">
-                                    <img src="https://i.imgur.com/5zV8V18.png" className="h-[156px] md:h-[278px] w-full object-cover object-left-top" alt="PartnerFlow Dashboard Screenshot" />
+                           <AppShowcase />
+                            <div className="mt-12">
+                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-4">Trusted by leading creators and coaches</p>
+                                <div className="flex justify-center items-center gap-8 opacity-60">
+                                    <p className="font-bold text-lg">Creator Weekly</p>
+                                    <p className="font-bold text-lg">SaaS Hub</p>
+                                    <p className="font-bold text-lg">CourseBuilders</p>
                                 </div>
                             </div>
-                            <div className="relative mx-auto bg-gray-900 dark:bg-gray-700 rounded-b-xl h-[24px] max-w-[301px] md:h-[42px] md:max-w-[512px]">
-                                <div className="absolute left-1/2 top-0 -translate-x-1/2 rounded-b-xl w-[56px] h-[5px] md:w-[96px] md:h-[8px] bg-gray-800"></div>
-                            </div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-8">Trusted by leading creators and coaches</p>
                         </FadeIn>
                     </div>
                 </section>
+                
+                 <section className="py-24 px-6 bg-gray-50 dark:bg-gray-800">
+                    <FadeIn className="container mx-auto text-center">
+                        <h2 className="text-4xl font-bold mb-4">It's simple to get started</h2>
+                        <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-16">Launch your affiliate program in minutes, not weeks.</p>
+                        
+                        <div className="relative">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                                <HowItWorksStep icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5a2 2 0 012 2v5a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zm0 0v11m0-11h11" /></svg>} title="Connect & Create">Add your products and set your desired commission rates in a few clicks.</HowItWorksStep>
+                                <HowItWorksStep icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>} title="Invite & Empower">Onboard affiliates with a unique link and give them the resources they need to succeed.</HowItWorksStep>
+                                <HowItWorksStep icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>} title="Track Everything">Our tracking pixel automatically attributes sales. Watch clicks and commissions roll in.</HowItWorksStep>
+                                <HowItWorksStep icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H4a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>} title="Pay With a Click">Run mass payouts to all your affiliates in one go with our secure Stripe integration.</HowItWorksStep>
+                            </div>
+                            <div className="absolute top-1/3 left-0 w-full h-20 -translate-y-1/2 hidden lg:block" aria-hidden="true">
+                                <svg className="w-full h-full text-gray-300 dark:text-gray-600" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M5 40 C 150 40, 150 10, 300 10" stroke="currentColor" strokeWidth="2" strokeDasharray="8 8" />
+                                    <path d="M300 10 C 450 10, 450 70, 600 70" stroke="currentColor" strokeWidth="2" strokeDasharray="8 8" />
+                                    <path d="M600 70 C 750 70, 750 10, 900 10" stroke="currentColor" strokeWidth="2" strokeDasharray="8 8" />
+                                </svg>
+                            </div>
+                        </div>
+
+                    </FadeIn>
+                </section>
 
                 <section id="features" className="py-24 px-6 bg-white dark:bg-gray-900">
-                    <FadeIn className="container mx-auto">
-                        <div className="text-center max-w-3xl mx-auto mb-16">
+                     <div className="container mx-auto">
+                        <div className="text-center max-w-3xl mx-auto mb-20">
                             <h2 className="text-4xl font-bold">Everything you need. Nothing you don't.</h2>
                             <p className="text-lg text-gray-600 dark:text-gray-400 mt-4">PartnerFlow is packed with powerful features designed to save you time and help you grow your affiliate revenue.</p>
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
-                            <div className="lg:col-span-1 space-y-4">
-                                {features.map(feature => (
-                                    <button
-                                        key={feature.id}
-                                        onClick={() => setActiveFeature(feature.id)}
-                                        className={`w-full text-left p-6 rounded-lg transition-all duration-300 ${activeFeature === feature.id ? 'bg-cyan-50 dark:bg-cyan-900/20 ring-2 ring-cyan-500 shadow-lg' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
-                                    >
-                                        <div className="flex items-center">
-                                            <div className={`p-2 rounded-md mr-4 ${activeFeature === feature.id ? 'text-cyan-600' : 'text-gray-500'}`}>
-                                                {feature.icon}
-                                            </div>
-                                            <h3 className="text-lg font-semibold">{feature.title}</h3>
-                                        </div>
-                                        {activeFeature === feature.id && (
-                                            <p className="text-gray-600 dark:text-gray-400 mt-2 pl-12 text-sm">{feature.description}</p>
-                                        )}
-                                    </button>
-                                ))}
+                        <FadeIn className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-24">
+                            <div className="text-left">
+                                <h3 className="text-3xl font-bold mb-4">Your Mission Control</h3>
+                                <p className="text-gray-600 dark:text-gray-400 mb-6">Get a bird's-eye view of your entire affiliate program. Track clicks, sales, and commissions in real-time with a clear, concise, and actionable dashboard.</p>
+                                <ul className="space-y-3">
+                                    <li className="flex items-start"><CheckIcon className="h-5 w-5 text-cyan-500 mr-3 mt-1 flex-shrink-0" /><span>Monitor key metrics at a glance.</span></li>
+                                    <li className="flex items-start"><CheckIcon className="h-5 w-5 text-cyan-500 mr-3 mt-1 flex-shrink-0" /><span>Identify top-performing affiliates and products instantly.</span></li>
+                                    <li className="flex items-start"><CheckIcon className="h-5 w-5 text-cyan-500 mr-3 mt-1 flex-shrink-0" /><span>Visualize your sales trends over time.</span></li>
+                                </ul>
                             </div>
-                            <div className="lg:col-span-2 sticky top-24">
-                                <div className="relative">
-                                    <div className="absolute -inset-4 bg-gradient-to-r from-cyan-400 to-teal-400 rounded-lg blur-2xl opacity-20 dark:opacity-30"></div>
-                                    <div className="relative bg-white dark:bg-gray-800 p-2 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700">
-                                        {features.map(feature => (
-                                            <img
-                                                key={feature.id}
-                                                src={feature.imageUrl}
-                                                alt={feature.title}
-                                                className={`rounded-md w-full h-auto transition-opacity duration-500 ${activeFeature === feature.id ? 'opacity-100' : 'opacity-0 absolute top-0 left-0'}`}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
+                            <div className="relative"><DashboardScreenshot /></div>
+                        </FadeIn>
+                        
+                        <FadeIn className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-24">
+                            <div className="relative lg:order-2"><AffiliatesScreenshot /></div>
+                             <div className="text-left lg:order-1">
+                                <h3 className="text-3xl font-bold mb-4">Powerful Affiliate Management</h3>
+                                <p className="text-gray-600 dark:text-gray-400 mb-6">Effortlessly manage your partners. Invite new affiliates with a unique link, approve applications, and track individual performance.</p>
+                                <ul className="space-y-3">
+                                    <li className="flex items-start"><CheckIcon className="h-5 w-5 text-cyan-500 mr-3 mt-1 flex-shrink-0" /><span>Customizable affiliate sign-up link.</span></li>
+                                    <li className="flex items-start"><CheckIcon className="h-5 w-5 text-cyan-500 mr-3 mt-1 flex-shrink-0" /><span>Approve or deny pending affiliates with one click.</span></li>
+                                    <li className="flex items-start"><CheckIcon className="h-5 w-5 text-cyan-500 mr-3 mt-1 flex-shrink-0" /><span>Empower partners with a dedicated affiliate portal.</span></li>
+                                </ul>
+                            </div>
+                        </FadeIn>
+
+                        <FadeIn className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                            <div className="text-left">
+                                <h3 className="text-3xl font-bold mb-4">Insightful, Actionable Reports</h3>
+                                <p className="text-gray-600 dark:text-gray-400 mb-6">Dive deep into your data. Understand which products and partners are driving the most growth and make data-driven decisions to scale your program.</p>
+                                <ul className="space-y-3">
+                                    <li className="flex items-start"><CheckIcon className="h-5 w-5 text-cyan-500 mr-3 mt-1 flex-shrink-0" /><span>Analyze performance by affiliate and product.</span></li>
+                                    <li className="flex items-start"><CheckIcon className="h-5 w-5 text-cyan-500 mr-3 mt-1 flex-shrink-0" /><span>Filter reports by date range for precise analysis.</span></li>
+                                    <li className="flex items-start"><CheckIcon className="h-5 w-5 text-cyan-500 mr-3 mt-1 flex-shrink-0" /><span>Export your data to CSV for further review.</span></li>
+                                </ul>
+                            </div>
+                            <div className="relative"><ReportsScreenshot /></div>
+                        </FadeIn>
+                    </div>
+                </section>
+                
+                 <section className="py-24 px-6 bg-gray-50 dark:bg-gray-800">
+                    <FadeIn className="container mx-auto text-center">
+                         <h2 className="text-4xl font-bold mb-4">Everything you need to succeed</h2>
+                         <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-16">Packed with features to make your life easier.</p>
+                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
+                            <div className="p-6"><h3 className="text-lg font-semibold mb-2">Professional Affiliate Portal</h3><p className="text-gray-600 dark:text-gray-400 text-sm">Give your affiliates their own dashboard to track performance and get resources.</p></div>
+                            <div className="p-6"><h3 className="text-lg font-semibold mb-2">Tiered Commissions & Bonuses</h3><p className="text-gray-600 dark:text-gray-400 text-sm">Incentivize top performers with automated commission increases and performance bonuses.</p></div>
+                            <div className="p-6"><h3 className="text-lg font-semibold mb-2">1-Click Mass Payouts</h3><p className="text-gray-600 dark:text-gray-400 text-sm">Pay all your affiliates at once with our secure Stripe integration. No more manual transfers.</p></div>
+                            <div className="p-6"><h3 className="text-lg font-semibold mb-2">Marketing Creatives Library</h3><p className="text-gray-600 dark:text-gray-400 text-sm">Upload banners, email swipes, and guides for your affiliates to use.</p></div>
+                            <div className="p-6"><h3 className="text-lg font-semibold mb-2">Affiliate Marketplace</h3><p className="text-gray-600 dark:text-gray-400 text-sm">List your product publicly to attract new, high-quality affiliates from the PartnerFlow network.</p></div>
+                            <div className="p-6"><h3 className="text-lg font-semibold mb-2">AI-Powered Communication</h3><p className="text-gray-600 dark:text-gray-400 text-sm">Use our built-in AI assistant to draft effective announcement emails to your partners.</p></div>
+                         </div>
+                    </FadeIn>
+                </section>
+                
+                 <section className="py-24 px-6 bg-white dark:bg-gray-900">
+                    <FadeIn className="container mx-auto text-center">
+                        <h2 className="text-4xl font-bold mb-16">Loved by creators like you</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
+                            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+                                <p className="text-gray-600 dark:text-gray-400 mb-4">"PartnerFlow saved me at least 10 hours a month. What used to be a spreadsheet nightmare is now a one-click process. I can't imagine running my program without it."</p>
+                                <div className="flex items-center"><div className="w-10 h-10 rounded-full bg-gray-300 mr-3"></div><div><p className="font-semibold">Jenna Smith</p><p className="text-sm text-gray-500">Course Creator</p></div></div>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+                                <p className="text-gray-600 dark:text-gray-400 mb-4">"The affiliate dashboard is a game-changer. My partners feel so much more professional and empowered. Their sales have gone up since we switched."</p>
+                                <div className="flex items-center"><div className="w-10 h-10 rounded-full bg-gray-300 mr-3"></div><div><p className="font-semibold">Alex Doe</p><p className="text-sm text-gray-500">Coach & Entrepreneur</p></div></div>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+                                <p className="text-gray-600 dark:text-gray-400 mb-4">"Simple, powerful, and beautiful to use. The tracking just works. I finally have a clear view of what's working in my affiliate program."</p>
+                                <div className="flex items-center"><div className="w-10 h-10 rounded-full bg-gray-300 mr-3"></div><div><p className="font-semibold">Eva Gardner</p><p className="text-sm text-gray-500">Designer & Creator</p></div></div>
                             </div>
                         </div>
                     </FadeIn>
                 </section>
-                
+
+
                 <section id="pricing" className="py-24 px-6 bg-gray-50 dark:bg-gray-800">
                     <FadeIn className="container mx-auto text-center">
                         <h2 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
@@ -304,54 +351,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogi
                             </div>
                           ))}
                         </div>
-
-                         <div className="mt-12 w-full max-w-6xl mx-auto">
-                            <h3 className="text-2xl font-bold mb-6">Compare All Features</h3>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="text-gray-700 dark:text-gray-300">
-                                        <tr>
-                                            <th className="py-4 px-2 font-semibold">Feature</th>
-                                            {plans.map(p => <th key={p.name} className="py-4 px-2 font-semibold text-center">{p.name}</th>)}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="text-gray-600 dark:text-gray-400">
-                                        <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50"><td colSpan={4} className="py-3 px-2 font-bold text-gray-800 dark:text-white">Core Features</td></tr>
-                                        <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
-                                            <td className="py-3 px-2">Affiliate Limit</td>
-                                            {plans.map(p => <td key={p.name} className="py-3 px-2 text-center font-medium text-gray-800 dark:text-white">{p.limits.affiliates}</td>)}
-                                        </tr>
-                                        <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
-                                            <td className="py-3 px-2">Product Limit</td>
-                                            {plans.map(p => <td key={p.name} className="py-3 px-2 text-center font-medium text-gray-800 dark:text-white">{p.limits.products}</td>)}
-                                        </tr>
-                                         <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
-                                            <td className="py-3 px-2">Affiliate Portal</td>
-                                            {plans.map(p => <td key={p.name} className="py-3 px-2 text-center">{p.features.hasAffiliatePortal ? <CheckIcon className="h-5 w-5 text-green-500 mx-auto" /> : <XIcon />}</td>)}
-                                        </tr>
-                                         <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
-                                            <td className="py-3 px-2">Automated Payouts (Stripe)</td>
-                                            <td className="py-3 px-2 text-center"><CheckIcon className="h-5 w-5 text-green-500 mx-auto" /></td>
-                                            <td className="py-3 px-2 text-center"><CheckIcon className="h-5 w-5 text-green-500 mx-auto" /></td>
-                                            <td className="py-3 px-2 text-center"><CheckIcon className="h-5 w-5 text-green-500 mx-auto" /></td>
-                                        </tr>
-                                        <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50"><td colSpan={4} className="py-3 px-2 font-bold text-gray-800 dark:text-white mt-4">Advanced Features</td></tr>
-                                        <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
-                                            <td className="py-3 px-2">Tiered Commissions & Bonuses</td>
-                                            {plans.map(p => <td key={p.name} className="py-3 px-2 text-center">{p.features.hasTieredCommissions ? <CheckIcon className="h-5 w-5 text-green-500 mx-auto" /> : <XIcon />}</td>)}
-                                        </tr>
-                                        <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
-                                            <td className="py-3 px-2">API Access</td>
-                                            {plans.map(p => <td key={p.name} className="py-3 px-2 text-center">{p.features.hasApiAccess ? <CheckIcon className="h-5 w-5 text-green-500 mx-auto" /> : <XIcon />}</td>)}
-                                        </tr>
-                                         <tr className="border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-800/50">
-                                            <td className="py-3 px-2">Priority Support</td>
-                                            {plans.map(p => <td key={p.name} className="py-3 px-2 text-center">{p.features.prioritySupport ? <CheckIcon className="h-5 w-5 text-green-500 mx-auto" /> : <XIcon />}</td>)}
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
                     </FadeIn>
                 </section>
 
@@ -385,45 +384,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogi
                         </button>
                     </FadeIn>
                 </section>
-
-                <section className="py-24 px-6 bg-gray-50 dark:bg-gray-800">
-                    <FadeIn className="container mx-auto max-w-3xl text-center">
-                         <svg className="mx-auto h-12 w-12 text-cyan-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                        <h2 className="text-4xl font-bold mb-4">Join Our Newsletter</h2>
-                        <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
-                            Get expert tips, case studies, and industry news on affiliate marketing delivered straight to your inbox.
-                        </p>
-                        {isSubscribed ? (
-                            <div className="text-lg font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-4 rounded-lg max-w-lg mx-auto">
-                                <p>✅ Success! Thanks for subscribing. Check your inbox for a confirmation.</p>
-                            </div>
-                        ) : (
-                            <div>
-                                <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto">
-                                    <input
-                                        type="email"
-                                        value={newsletterEmail}
-                                        onChange={(e) => { setNewsletterEmail(e.target.value); setNewsletterError(''); }}
-                                        placeholder="Enter your email address"
-                                        className="w-full px-5 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                                        required
-                                        aria-label="Email for newsletter"
-                                    />
-                                    <button
-                                        type="submit"
-                                        className="flex-shrink-0 px-8 py-3 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75 transition-colors"
-                                    >
-                                        Subscribe
-                                    </button>
-                                </form>
-                                {newsletterError && <p className="text-red-500 text-sm mt-2">{newsletterError}</p>}
-                            </div>
-                        )}
-                    </FadeIn>
-                </section>
-
+                
                 <section className="relative py-24 px-6 bg-gray-900 text-white text-center overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-teal-400 opacity-10"></div>
                     <FadeIn className="relative z-10">

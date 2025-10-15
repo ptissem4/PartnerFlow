@@ -1,89 +1,103 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plan } from '../data/mockData';
+import LoadingSpinner from './LoadingSpinner';
 
 interface CheckoutPageProps {
-    plan: Plan;
-    cycle: 'monthly' | 'annual';
-    onSuccess: () => void;
-    onCancel: () => void;
-    userEmail: string;
+    planToCheckout: { plan: Plan, cycle: 'monthly' | 'annual'} | null;
+    onSuccess: () => Promise<void>;
+    onReturnToApp: () => void;
 }
 
-const CheckoutPage: React.FC<CheckoutPageProps> = ({ plan, cycle, onSuccess, onCancel, userEmail }) => {
-    const [isProcessing, setIsProcessing] = useState(false);
+const CheckoutPage: React.FC<CheckoutPageProps> = ({ planToCheckout, onSuccess, onReturnToApp }) => {
+    const [status, setStatus] = useState<'processing' | 'success' | 'failed'>('processing');
 
+    useEffect(() => {
+        if (planToCheckout) {
+            // Simulate the time it takes for the user to pay on Stripe
+            // and for Stripe to send a webhook confirmation.
+            const paymentSimulation = setTimeout(async () => {
+                try {
+                    await onSuccess();
+                    setStatus('success');
+                } catch (error) {
+                    console.error("Payment processing failed:", error);
+                    setStatus('failed');
+                }
+            }, 2500); // 2.5 second delay to simulate payment + webhook
+
+            return () => clearTimeout(paymentSimulation);
+        } else {
+             // If no plan is selected somehow, show failure
+            setStatus('failed');
+        }
+    }, [planToCheckout, onSuccess]);
+
+    if (!planToCheckout) {
+        return (
+             <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-800 p-4">
+                <div className="bg-white dark:bg-gray-900 p-8 rounded-lg shadow-lg text-center">
+                    <h2 className="text-2xl font-bold text-red-500 mb-4">Error</h2>
+                    <p className="text-gray-600 dark:text-gray-300 mb-6">No plan was selected for checkout.</p>
+                    <button onClick={onReturnToApp} className="w-full bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg">Return to Billing</button>
+                </div>
+            </div>
+        );
+    }
+    
+    const { plan, cycle } = planToCheckout;
     const price = cycle === 'annual' ? plan.annualPrice : plan.price;
-    const priceDisplay = cycle === 'annual' ? `$${price}/year` : `$${plan.price}/month`;
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsProcessing(true);
-        // Simulate payment processing
-        setTimeout(() => {
-            onSuccess();
-            setIsProcessing(false);
-        }, 1500);
-    };
+    const renderContent = () => {
+        switch (status) {
+            case 'processing':
+                return (
+                    <>
+                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Processing Your Payment...</h2>
+                        <p className="text-gray-600 dark:text-gray-300 mb-6">You are being redirected to our secure payment processor. Please wait.</p>
+                        <LoadingSpinner />
+                    </>
+                );
+            case 'success':
+                return (
+                    <>
+                        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                            <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Payment Successful!</h2>
+                        <p className="text-gray-600 dark:text-gray-300 mb-6">
+                            You have successfully subscribed to the <strong>{plan.name}</strong>. Welcome aboard!
+                        </p>
+                        <button onClick={onReturnToApp} className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg">
+                            Go to my Dashboard &rarr;
+                        </button>
+                    </>
+                );
+            case 'failed':
+                return (
+                     <>
+                        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                             <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Payment Failed</h2>
+                        <p className="text-gray-600 dark:text-gray-300 mb-6">
+                            There was an issue processing your payment. Please try again or contact support.
+                        </p>
+                        <button onClick={onReturnToApp} className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg">
+                            Return to Billing
+                        </button>
+                    </>
+                );
+        }
+    }
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-800 p-4">
-            <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Order Summary */}
-                <div className="bg-gray-50 dark:bg-gray-900/50 p-8 rounded-lg order-last lg:order-first">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Order Summary</h2>
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center pb-4 border-b border-gray-200 dark:border-gray-700">
-                            <div>
-                                <p className="font-semibold text-gray-800 dark:text-white">{plan.name}</p>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">{cycle === 'annual' ? 'Billed Annually' : 'Billed Monthly'}</p>
-                            </div>
-                            <p className="font-semibold text-gray-800 dark:text-white">{priceDisplay}</p>
-                        </div>
-                        <div className="flex justify-between font-bold text-lg text-gray-800 dark:text-white pt-4">
-                            <p>Total</p>
-                            <p>${price.toFixed(2)}</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Payment Form */}
-                <div className="bg-white dark:bg-gray-900 p-8 rounded-lg shadow-lg">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Subscribe to {plan.name}</h2>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address</label>
-                            <input type="email" id="email" readOnly value={userEmail} className="mt-1 block w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm" />
-                        </div>
-                        <div>
-                            <label htmlFor="card-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Card Number</label>
-                            <input type="text" id="card-number" placeholder="•••• •••• •••• 4242" className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label htmlFor="expiry-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Expiry Date</label>
-                                <input type="text" id="expiry-date" placeholder="MM / YY" className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" />
-                            </div>
-                            <div>
-                                <label htmlFor="cvc" className="block text-sm font-medium text-gray-700 dark:text-gray-300">CVC</label>
-                                <input type="text" id="cvc" placeholder="123" className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" />
-                            </div>
-                        </div>
-                         <div className="pt-6">
-                            <button
-                                type="submit"
-                                disabled={isProcessing}
-                                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-colors disabled:opacity-50 flex items-center justify-center"
-                            >
-                                {isProcessing && <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
-                                {isProcessing ? 'Processing...' : `Pay $${price.toFixed(2)}`}
-                            </button>
-                            <button type="button" onClick={onCancel} className="w-full mt-3 text-center text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-cyan-500">
-                                Cancel
-                            </button>
-                        </div>
-                    </form>
-                </div>
+            <div className="w-full max-w-md bg-white dark:bg-gray-900 p-8 rounded-lg shadow-lg text-center">
+                {renderContent()}
             </div>
         </div>
     );

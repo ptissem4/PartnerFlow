@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import StatCard from './StatCard';
 import { User, Product, Payout } from '../data/mockData';
@@ -12,6 +11,7 @@ interface DashboardProps {
   payouts: Payout[];
   onRecordSale: (affiliateId: string, productId: string, saleAmount: number) => void;
   onRecordSaleByCoupon: (couponCode: string, productId: string, saleAmount: number) => void;
+  onSimulatePurchase: () => void;
 }
 
 type DateRangePreset = 'today' | '7d' | '30d' | 'this_month' | 'last_month' | 'this_year' | 'last_year' | 'custom';
@@ -54,7 +54,7 @@ const getDateRange = (preset: DateRangePreset, customStart?: Date, customEnd?: D
     return { start, end };
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ affiliates, products, payouts, onRecordSale, onRecordSaleByCoupon }) => {
+const Dashboard: React.FC<DashboardProps> = ({ affiliates, products, payouts, onRecordSale, onRecordSaleByCoupon, onSimulatePurchase }) => {
     const [isRecordSaleModalOpen, setIsRecordSaleModalOpen] = useState(false);
     const [dateRange, setDateRange] = useState<DateRangePreset>('30d');
     const [customStartDate, setCustomStartDate] = useState('');
@@ -154,12 +154,20 @@ const Dashboard: React.FC<DashboardProps> = ({ affiliates, products, payouts, on
             customEndDate={customEndDate}
             setCustomEndDate={setCustomEndDate}
          />
-        <button
-            onClick={() => setIsRecordSaleModalOpen(true)}
-            className="px-4 py-2 bg-teal-500 text-white font-semibold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75"
-        >
-            Simulate Incoming Sale
-        </button>
+        <div className="flex gap-2">
+            <button
+                onClick={() => setIsRecordSaleModalOpen(true)}
+                className="px-4 py-2 bg-teal-500 text-white font-semibold rounded-lg shadow-md hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75"
+            >
+                Record Manual Sale
+            </button>
+            <button
+                onClick={onSimulatePurchase}
+                className="px-4 py-2 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75"
+            >
+                Simulate Purchase
+            </button>
+        </div>
       </div>
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

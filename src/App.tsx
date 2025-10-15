@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
@@ -22,7 +21,8 @@ import {
     PlatformSettings as PlatformSettingsType,
     Plan,
     Partnership,
-    Payment
+    Payment,
+    Sale
 } from '../data/mockData';
 import { supabase } from './lib/supabaseClient';
 
@@ -61,6 +61,7 @@ import AffiliateSignupPage from '../components/AffiliateSignupPage';
 import Financials from '../components/Financials';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CheckoutPage from '../components/CheckoutPage';
+import ThankYouPage from '../components/ThankYouPage';
 
 
 // Types
@@ -68,7 +69,7 @@ export type Page = 'Dashboard' | 'Affiliates' | 'Products' | 'Resources' | 'Payo
 export type AdminPage = 'AdminDashboard' | 'Clients' | 'Analytics' | 'PartnerflowAffiliates' | 'PlatformSettings' | 'Financials';
 export type Theme = 'light' | 'dark';
 export type ActiveView = 'creator' | 'affiliate';
-export type AppView = 'landing' | 'login_selector' | 'creator_login' | 'affiliate_login' | 'register' | 'creator_affiliate_signup' | 'partnerflow_affiliate_signup' | 'app' | 'stripe_connect' | 'marketplace' | 'not_found' | 'affiliate_apply_signup' | 'affiliate_signup' | 'checkout';
+export type AppView = 'landing' | 'login_selector' | 'creator_login' | 'affiliate_login' | 'register' | 'creator_affiliate_signup' | 'partnerflow_affiliate_signup' | 'app' | 'stripe_connect' | 'marketplace' | 'not_found' | 'affiliate_apply_signup' | 'affiliate_signup' | 'checkout-status' | 'thank_you';
 
 const App: React.FC = () => {
     // State management
@@ -267,11 +268,11 @@ const App: React.FC = () => {
         return { success: false, error: 'An unknown error occurred.' };
     };
     
-    const handlePlanChange = (newPlanName: string, billingCycle: 'monthly' | 'annual') => {
+    const handlePlanChange = async (newPlanName: string, billingCycle: 'monthly' | 'annual') => {
         const plan = planDetails[newPlanName as keyof typeof planDetails];
-        if(plan) {
+        if (plan) {
             setPlanToCheckout({ plan, cycle: billingCycle });
-            setAppView('checkout');
+            setAppView('checkout-status');
         }
     };
     
@@ -286,9 +287,6 @@ const App: React.FC = () => {
             setCurrentUser(u => u ? { ...u, currentPlan: newPlan.name, billingCycle: newCycle, trialEndsAt: undefined } : null);
             setPayments(p => [...p, { id: Date.now(), user_id: currentUser.id, amount, date: new Date().toISOString().split('T')[0], plan: newPlan.name }]);
             showToast(`Successfully subscribed to the ${newPlan.name}!`);
-            setAppView('app');
-            setActivePage('Billing');
-            setPlanToCheckout(null);
             return;
         }
 
@@ -316,10 +314,107 @@ const App: React.FC = () => {
         }
 
         await fetchData(currentUser); // Refetch all data to update UI
-        setAppView('app');
-        setActivePage('Billing');
-        setPlanToCheckout(null);
     };
+
+    const handleStripeConnectSuccess = async () => {
+        if (!currentUser) return;
+    
+        if (useMockData) {
+            setUserSettings(prev => prev ? { ...prev, integrations: { ...prev.integrations, stripe: 'Connected' } } : null);
+        } else {
+            if (!userSettings) return; // Should not happen for a logged-in user
+            const newIntegrations = { ...userSettings.integrations, stripe: 'Connected' as 'Connected' | 'Disconnected' };
+            const { error } = await supabase.from('user_settings').update({ integrations: newIntegrations }).eq('user_id', currentUser.id);
+            if (error) {
+                showToast(`Error connecting Stripe: ${error.message}`);
+            } else {
+                await fetchData(currentUser); // Refetch to get updated settings
+            }
+        }
+        
+        showToast("Stripe connected successfully!");
+        setAppView('app');
+        setActivePage('Settings');
+    };
+
+    const handleTrackSale = (referralCode: string, saleDetails: { productId: string; amount: number; }) => {
+        const affiliate = users.find(u => u.referralCode === referralCode || u.couponCode === referralCode);
+        if (!affiliate) {
+          showToast(`Sale tracked, but no affiliate found for code: ${referralCode}`);
+          return;
+        }
+    
+        const product = products.find(p => p.id.toString() === saleDetails.productId);
+        if (!product) {
+          showToast(`Sale tracked, but product ID ${saleDetails.productId} not found.`);
+          return;
+        }
+    
+        // Calculate commission
+        let commissionRate = 0;
+        const sortedTiers = [...product.commission_tiers].sort((a, b) => b.threshold - a.threshold);
+        for (const tier of sortedTiers) {
+          if ((affiliate.sales || 0) >= tier.threshold) {
+            commissionRate = tier.rate;
+            break;
+          }
+        }
+        const commissionAmount = saleDetails.amount * (commissionRate / 100);
+    
+        // Create new sale object
+        const newSale: Sale = {
+          id: Date.now(),
+          productId: product.id,
+          productName: product.name,
+          saleAmount: saleDetails.amount,
+          commissionAmount,
+          date: new Date().toISOString().split('T')[0],
+          status: 'Pending',
+        };
+    
+        // Find or create payout for the current month
+        const today = new Date();
+        const currentMonthPeriod = `${today.toLocaleString('default', { month: 'short' })} ${today.getFullYear()}`;
+        
+        let updatedPayouts = [...payouts];
+        let affiliatePayout = updatedPayouts.find(p => p.user_id === affiliate.id && p.period === currentMonthPeriod);
+    
+        if (affiliatePayout) {
+          affiliatePayout.sales.push(newSale);
+          affiliatePayout.amount += commissionAmount;
+        } else {
+          affiliatePayout = {
+            id: Date.now() + 1,
+            user_id: affiliate.id,
+            affiliate_name: affiliate.name,
+            affiliate_avatar: affiliate.avatar,
+            amount: commissionAmount,
+            period: currentMonthPeriod,
+            due_date: new Date(today.getFullYear(), today.getMonth() + 2, 0).toISOString().split('T')[0], // End of next month
+            status: 'Due',
+            sales: [newSale],
+          };
+          updatedPayouts.push(affiliatePayout);
+        }
+        setPayouts(updatedPayouts);
+    
+        // Update product and affiliate stats
+        const updatedProducts = products.map(p => 
+          p.id === product.id ? { ...p, sales_count: p.sales_count + 1 } : p
+        );
+        setProducts(updatedProducts);
+    
+        const updatedUsers = users.map(u => 
+          u.id === affiliate.id ? { 
+            ...u, 
+            sales: (u.sales || 0) + 1,
+            commission: (u.commission || 0) + commissionAmount 
+          } : u
+        );
+        setUsers(updatedUsers);
+    
+        showToast(`Success! Sale of ${product.name} attributed to ${affiliate.name}.`);
+      };
 
 
     const handleAffiliateSignup = (name: string, email: string) => {
@@ -377,15 +472,19 @@ const App: React.FC = () => {
                     onApply={handleAffiliateApply}
                 />;
             case 'stripe_connect':
-                return <StripeConnectPage onConnectSuccess={() => {showToast("Stripe connected!"); setAppView('app'); setActivePage('Settings')}} onCancel={() => setAppView('app')} />;
-            case 'checkout':
+                return <StripeConnectPage onConnectSuccess={handleStripeConnectSuccess} onCancel={() => { setAppView('app'); setActivePage('Settings'); }} />;
+            case 'checkout-status':
                 return <CheckoutPage
-                            plan={planToCheckout!.plan}
-                            cycle={planToCheckout!.cycle}
+                            planToCheckout={planToCheckout}
                             onSuccess={handleSubscriptionSuccess}
-                            onCancel={() => { setAppView('app'); setActivePage('Billing')}}
-                            userEmail={currentUser?.email || ''}
+                            onReturnToApp={() => { 
+                                setAppView('app'); 
+                                setActivePage('Billing');
+                                setPlanToCheckout(null);
+                            }}
                         />;
+            case 'thank_you':
+                return <ThankYouPage onNavigateHome={() => setAppView('app')} onTrackSale={handleTrackSale} />;
             case 'login_selector':
                 return <LoginSelector onSelect={(view) => setAppView(view)} />;
             default:
@@ -451,7 +550,17 @@ const App: React.FC = () => {
 
         switch (activePage as Page) {
             case 'Dashboard':
-                return <Dashboard affiliates={myAffiliates} products={myProducts} payouts={myPayouts} onRecordSale={onRecordSale} onRecordSaleByCoupon={onRecordSaleByCoupon} />;
+                return <Dashboard 
+                            affiliates={myAffiliates} 
+                            products={myProducts} 
+                            payouts={myPayouts} 
+                            onRecordSale={onRecordSale} 
+                            onRecordSaleByCoupon={onRecordSaleByCoupon} 
+                            onSimulatePurchase={() => {
+                                document.cookie = "partnerflow_ref=ELENA-R;path=/"; // Set a demo cookie
+                                setAppView('thank_you');
+                            }}
+                        />;
             case 'Affiliates':
                 return <Affiliates affiliates={myAffiliates} allUsers={users} setUsers={setUsers} payouts={myPayouts} showToast={showToast} currentPlan={currentPlan} currentUser={currentUser} refetchData={() => fetchData(currentUser)} />;
             case 'Products':
@@ -477,7 +586,17 @@ const App: React.FC = () => {
             case 'Settings':
                 return <Settings currentUser={currentUser} userSettings={userSettings!} onSettingsChange={setUserSettings} setAppView={setAppView} />;
             default:
-                return <Dashboard affiliates={myAffiliates} products={myProducts} payouts={myPayouts} onRecordSale={onRecordSale} onRecordSaleByCoupon={onRecordSaleByCoupon} />;
+                return <Dashboard 
+                            affiliates={myAffiliates} 
+                            products={myProducts} 
+                            payouts={myPayouts} 
+                            onRecordSale={onRecordSale} 
+                            onRecordSaleByCoupon={onRecordSaleByCoupon}
+                            onSimulatePurchase={() => {
+                                document.cookie = "partnerflow_ref=ELENA-R;path=/"; // Set a demo cookie
+                                setAppView('thank_you');
+                            }}
+                        />;
         }
     };
 
