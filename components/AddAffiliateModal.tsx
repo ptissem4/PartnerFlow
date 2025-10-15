@@ -42,7 +42,7 @@ const AddAffiliateModal: React.FC<AddAffiliateModalProps> = ({ onClose, onSave, 
         ...affiliateToEdit, // a null or existing object
         id: affiliateToEdit ? affiliateToEdit.id : crypto.randomUUID(), // temp ID for new users, real one from DB
         roles: ['affiliate'],
-        status: affiliateToEdit?.status || 'Active',
+        status: 'Active',
         name,
         email,
         couponCode: couponCode.trim() || undefined,

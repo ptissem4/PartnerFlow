@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
-import { Product, Resource, User, ResourceType } from '../data/mockData';
-import { Plan } from '../src/App';
+// FIX: Updated Plan import to resolve circular dependency.
+import { Product, Resource, User, ResourceType, Plan } from '../data/mockData';
 import AddProductModal from './AddProductModal';
 
 interface ProductDetailProps {
@@ -28,6 +29,23 @@ const ResourceIcon: React.FC<{type: ResourceType}> = ({ type }) => {
     }
 }
 
+const renderMarkdown = (markdown: string) => {
+    if (!markdown) return null;
+    let html = markdown
+        .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mb-2 mt-4">$1</h2>')
+        .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mb-2 mt-4">$1</h1>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="rounded-lg my-4 shadow-md" />')
+        .replace(/^- (.*$)/gim, '<li class="ml-5 list-disc">$1</li>')
+        .replace(/\n/g, '<br />');
+
+    html = html.replace(/<br \/><li/g, '<li').replace(/<\/li><br \/>/g, '</li>');
+    html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+    
+    return <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
 const ProductDetail: React.FC<ProductDetailProps> = ({ product, resources, onBack, onUpdateProduct, showToast, currentPlan, currentUser }) => {
     const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false);
     
@@ -47,15 +65,15 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, resources, onBac
                     currentUser={currentUser}
                 />
             }
-            <div>
-                <button onClick={onBack} className="mb-4 flex items-center text-sm font-medium text-cyan-600 dark:text-cyan-500 hover:underline">
+            <div className="space-y-6">
+                <button onClick={onBack} className="flex items-center text-sm font-medium text-cyan-600 dark:text-cyan-500 hover:underline">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                     Back to Products
                 </button>
 
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                     <div className="flex justify-between items-start">
                         <div>
                             <h2 className="text-3xl font-bold text-gray-800 dark:text-white">{product.name}</h2>
@@ -65,31 +83,38 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, resources, onBac
                     </div>
                 </div>
                 
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                     <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-                        <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Assigned Resources</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Manage all resources from the new central <button onClick={onBack} className="font-medium text-cyan-500 hover:underline">Resource Library</button>.</p>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                        <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Product Description</h3>
+                         <div className="text-gray-600 dark:text-gray-400 space-y-4">
+                            {renderMarkdown(product.description || 'No description provided. Edit the product to add one.')}
+                        </div>
                     </div>
-                    
-                    <div className="space-y-3">
-                        {assignedResources.length > 0 ? assignedResources.map(resource => (
-                            <div key={resource.id} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md flex items-center">
-                                <ResourceIcon type={resource.type} />
-                                <div className="flex-grow">
-                                    <p className="font-medium text-gray-800 dark:text-white">{resource.name}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">{resource.description}</p>
+                    <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                         <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Assigned Resources</h3>
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Manage all resources from the central <button onClick={onBack} className="font-medium text-cyan-500 hover:underline">Resource Library</button>.</p>
+                        
+                        <div className="space-y-3">
+                            {assignedResources.length > 0 ? assignedResources.map(resource => (
+                                <div key={resource.id} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md flex items-center">
+                                    <ResourceIcon type={resource.type} />
+                                    <div className="flex-grow">
+                                        <p className="font-medium text-gray-800 dark:text-white">{resource.name}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">{resource.description}</p>
+                                    </div>
+                                    <span className="text-xs font-medium bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-300 px-2 py-1 rounded-full">
+                                        {resource.type}
+                                    </span>
                                 </div>
-                                <span className="text-xs font-medium bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-300 px-2 py-1 rounded-full">
-                                    {resource.type}
-                                </span>
-                            </div>
-                        )) : (
-                            <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400">
-                                No resources assigned to this product yet.
-                            </div>
-                        )}
+                            )) : (
+                                <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400">
+                                    No resources assigned to this product yet.
+                                </div>
+                            )}
+                        </div>
                     </div>
-
                 </div>
             </div>
         </>

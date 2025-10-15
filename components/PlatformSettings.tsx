@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { PlatformSettings as PlatformSettingsType } from '../data/mockData';
-import { Plan } from '../src/App';
+// FIX: Updated Plan import to resolve circular dependency.
+import { PlatformSettings as PlatformSettingsType, Plan } from '../data/mockData';
 
 interface PlatformSettingsProps {
     platformSettings: PlatformSettingsType;
@@ -95,56 +95,57 @@ const PlatformSettings: React.FC<PlatformSettingsProps> = ({ platformSettings, s
                 <div>
                     <label htmlFor="announcement-text" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Banner Text</label>
                     <textarea 
-                        id="announcement-text" 
-                        rows={3}
+                        id="announcement-text"
+                        rows={2}
                         value={announcementText}
                         onChange={(e) => setAnnouncementText(e.target.value)}
                         className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
                     />
                 </div>
-                <Toggle
+                <Toggle 
                     label="Enable Announcement Banner"
                     enabled={isAnnouncementEnabled}
                     onToggle={setIsAnnouncementEnabled}
                 />
             </SettingsCard>
-            
+
             <SettingsCard
                 title="Manage Subscription Plans"
-                footer={<button onClick={handleSavePlans} className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">Save Plan Details</button>}
+                 footer={<button onClick={handleSavePlans} className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">Save Plan Details</button>}
             >
-                <div className="space-y-4">
-                    {/* FIX: Explicitly type 'plan' to avoid 'unknown' type error. */}
+                <div className="space-y-6">
                     {Object.values(editablePlans).map((plan: Plan) => (
                         <div key={plan.name} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                            <h4 className="text-lg font-bold text-gray-800 dark:text-white mb-2">{plan.name}</h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-3">{plan.name}</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">Price ($/mo)</label>
+                                    <label htmlFor={`${plan.name}-price`} className="block text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Price ($)</label>
                                     <input 
                                         type="number" 
+                                        id={`${plan.name}-price`}
                                         value={plan.price}
                                         onChange={(e) => handlePlanDetailChange(plan.name, 'price', e.target.value)}
-                                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm"
-                                        disabled={plan.price === 0}
+                                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">Affiliate Limit</label>
+                                 <div>
+                                    <label htmlFor={`${plan.name}-affiliates`} className="block text-sm font-medium text-gray-700 dark:text-gray-300">Affiliate Limit</label>
                                     <input 
                                         type="number" 
+                                        id={`${plan.name}-affiliates`}
                                         value={plan.limits.affiliates}
                                         onChange={(e) => handlePlanDetailChange(plan.name, 'affiliates', e.target.value)}
-                                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm"
+                                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">Product Limit</label>
+                                 <div>
+                                    <label htmlFor={`${plan.name}-products`} className="block text-sm font-medium text-gray-700 dark:text-gray-300">Product Limit</label>
                                     <input 
                                         type="number" 
+                                        id={`${plan.name}-products`}
                                         value={plan.limits.products}
                                         onChange={(e) => handlePlanDetailChange(plan.name, 'products', e.target.value)}
-                                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm"
+                                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md"
                                     />
                                 </div>
                             </div>

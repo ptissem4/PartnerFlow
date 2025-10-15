@@ -1,4 +1,12 @@
+// FIX: Removed incorrect import of 'Plan' from '../components/Settings' to fix a circular dependency.
+// The 'Plan' interface is defined within this file.
+
 export type UserRole = 'creator' | 'affiliate' | 'super_admin';
+
+export interface Partnership {
+  creatorId: string;
+  status: 'Active' | 'Pending' | 'Inactive';
+}
 
 export interface User {
   id: string;
@@ -8,7 +16,8 @@ export interface User {
   roles: UserRole[];
   currentPlan?: string;
   joinDate?: string;
-  status?: 'Active' | 'Pending' | 'Inactive' | 'Suspended';
+  // FIX: Expanded User status to include Pending and Inactive to handle more states.
+  status?: 'Active' | 'Suspended' | 'Pending' | 'Inactive'; // Platform-level status
   trialEndsAt?: string; // ISO string for trial end date
   billingCycle?: 'monthly' | 'annual';
   onboardingStepCompleted?: number; // 0: not started, 1: welcome, 2: product added, 3: tracking, 4: affiliate invited, 5: complete
@@ -23,7 +32,7 @@ export interface User {
   conversionRate?: number;
   referralCode?: string;
   couponCode?: string;
-  partnerIds?: string[];
+  partnerships?: Partnership[];
   paypal_email?: string;
   notifications?: {
       newSale: boolean;
@@ -67,6 +76,8 @@ export interface Product {
     commission_tiers: CommissionTier[];
     bonuses: PerformanceBonus[];
     creation_date: string; // ISO format date string e.g., "2023-11-20"
+    isPubliclyListed?: boolean;
+    description?: string;
 }
 
 export interface Sale {
@@ -133,6 +144,23 @@ export interface PlatformSettings {
     }
 }
 
+// FIX: Moved Plan interface here to resolve circular dependency.
+export interface Plan {
+    name: string;
+    price: number;
+    annualPrice: number;
+    limits: {
+        affiliates: number;
+        products: number;
+    };
+    features: {
+        hasTieredCommissions: boolean;
+        hasAffiliatePortal: boolean;
+        hasApiAccess: boolean;
+        prioritySupport: boolean;
+    };
+}
+
 // --- MOCK DATA POPULATION ---
 const today = new Date();
 const daysAgo = (days: number) => new Date(today.getTime() - (days * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
@@ -149,18 +177,67 @@ const MOCK_SARA_ID = 'g7h8i9j0-sara-k-0000-000000000007';
 export const users: User[] = [
     { id: MOCK_ADMIN_ID, name: 'Super Admin', email: 'admin@partnerflow.app', avatar: 'https://i.pravatar.cc/150?u=admin', roles: ['super_admin', 'creator'], status: 'Active', joinDate: daysAgo(365), company_name: 'PartnerFlow HQ' },
     { id: MOCK_ALEX_ID, name: 'Alex Doe', email: 'alex.doe@example.com', avatar: `https://i.pravatar.cc/150?u=alex.doe@example.com`, roles: ['creator'], currentPlan: 'Starter Plan', joinDate: daysAgo(5), status: 'Active', trialEndsAt: new Date(new Date().setDate(new Date().getDate() + 9)).toISOString(), company_name: 'Alex Courses', onboardingStepCompleted: 5 },
-    { id: MOCK_JENNA_ID, name: 'Jenna Smith', email: 'jenna.s@example.com', avatar: `https://i.pravatar.cc/150?u=jenna.s@example.com`, roles: ['creator', 'affiliate'], currentPlan: 'Growth Plan', joinDate: daysAgo(180), status: 'Active', company_name: 'Jenna\'s Coaching', billingCycle: 'monthly', onboardingStepCompleted: 5, partnerIds: [MOCK_ALEX_ID], referralCode: 'JENNA-S', couponCode: 'JENNA10' },
+    { id: MOCK_JENNA_ID, name: 'Jenna Smith', email: 'jenna.s@example.com', avatar: `https://i.pravatar.cc/150?u=jenna.s@example.com`, roles: ['creator', 'affiliate'], currentPlan: 'Growth Plan', joinDate: daysAgo(180), status: 'Active', company_name: 'Jenna\'s Coaching', billingCycle: 'monthly', onboardingStepCompleted: 5, partnerships: [{ creatorId: MOCK_ALEX_ID, status: 'Active' }], sales: 2, commission: 159.2, clicks: 55, conversionRate: 3.6, referralCode: 'JENNA-S', couponCode: 'JENNA10' },
     { id: MOCK_EVA_ID, name: 'Eva Gardner', email: 'eva.gardner@example.com', avatar: `https://i.pravatar.cc/150?u=eva.gardner@example.com`, roles: ['creator'], currentPlan: 'Starter Plan', joinDate: daysAgo(45), status: 'Active', trialEndsAt: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(), company_name: 'Eva\'s Art', onboardingStepCompleted: 5 },
     { id: MOCK_ONBOARDING_ID, name: 'Onboarding Tester', email: 'onboarding.tester@example.com', avatar: `https://i.pravatar.cc/150?u=onboarding.tester@example.com`, roles: ['creator'], currentPlan: 'Starter Plan', joinDate: daysAgo(1), status: 'Active', trialEndsAt: new Date(new Date().setDate(new Date().getDate() + 13)).toISOString(), company_name: 'Setup Co.', onboardingStepCompleted: 0 },
-    { id: MOCK_ELENA_ID, name: 'Elena Rodriguez', email: 'elena.r@example.com', avatar: `https://i.pravatar.cc/150?u=elena.r@example.com`, roles: ['affiliate'], joinDate: daysAgo(90), status: 'Active', partnerIds: [MOCK_JENNA_ID], sales: 15, commission: 1498.5, clicks: 350, conversionRate: 4.29, referralCode: 'ELENA-R', couponCode: 'ELENA15', paypal_email: 'elena.paypal@example.com' },
-    { id: MOCK_MARK_ID, name: 'Mark Brown', email: 'mark.b@example.com', avatar: `https://i.pravatar.cc/150?u=mark.b@example.com`, roles: ['affiliate'], joinDate: daysAgo(60), status: 'Active', partnerIds: [MOCK_JENNA_ID], sales: 8, commission: 799.2, clicks: 180, conversionRate: 4.44, referralCode: 'MARK-B', couponCode: 'MARK10' },
-    { id: MOCK_SARA_ID, name: 'Sara Khan', email: 'sara.k@example.com', avatar: `https://i.pravatar.cc/150?u=sara.k@example.com`, roles: ['affiliate'], joinDate: daysAgo(10), status: 'Pending', partnerIds: [MOCK_JENNA_ID], sales: 0, commission: 0, clicks: 12, conversionRate: 0, referralCode: 'SARA-K' },
+    { id: MOCK_ELENA_ID, name: 'Elena Rodriguez', email: 'elena.r@example.com', avatar: `https://i.pravatar.cc/150?u=elena.r@example.com`, roles: ['affiliate'], joinDate: daysAgo(90), status: 'Active', partnerships: [{ creatorId: MOCK_JENNA_ID, status: 'Active' }], sales: 25, commission: 2497.5, clicks: 550, conversionRate: 4.5, referralCode: 'ELENA-R', couponCode: 'ELENA15', paypal_email: 'elena.paypal@example.com' },
+    { id: MOCK_MARK_ID, name: 'Mark Brown', email: 'mark.b@example.com', avatar: `https://i.pravatar.cc/150?u=mark.b@example.com`, roles: ['affiliate'], joinDate: daysAgo(60), status: 'Active', partnerships: [{ creatorId: MOCK_JENNA_ID, status: 'Active' }], sales: 12, commission: 1198.8, clicks: 280, conversionRate: 4.2, referralCode: 'MARK-B', couponCode: 'MARK10' },
+    { id: MOCK_SARA_ID, name: 'Sara Khan', email: 'sara.k@example.com', avatar: `https://i.pravatar.cc/150?u=sara.k@example.com`, roles: ['affiliate'], joinDate: daysAgo(10), status: 'Active', partnerships: [{ creatorId: MOCK_JENNA_ID, status: 'Pending' }, { creatorId: MOCK_ALEX_ID, status: 'Active' }], sales: 1, commission: 79.6, clicks: 32, conversionRate: 3.1, referralCode: 'SARA-K', couponCode: 'SARA15' },
 ];
 
 export const products: Product[] = [
-  { id: 1, user_id: MOCK_JENNA_ID, name: 'Ultimate Productivity Course', price: 499, sales_page_url: 'https://example.com/productivity', sales_count: 20, clicks: 450, commission_tiers: [{ threshold: 0, rate: 20 }, { threshold: 10, rate: 25 }], bonuses: [{ goal: 20, reward: 250, type: 'sales' }], creation_date: daysAgo(150) },
-  { id: 2, user_id: MOCK_JENNA_ID, name: 'Social Media Mastery', price: 299, sales_page_url: 'https://example.com/social', sales_count: 3, clicks: 80, commission_tiers: [{ threshold: 0, rate: 30 }], bonuses: [], creation_date: daysAgo(30) },
-  { id: 3, user_id: MOCK_ALEX_ID, name: 'Beginner\'s Guide to Investing', price: 199, sales_page_url: 'https://example.com/investing', sales_count: 5, clicks: 120, commission_tiers: [{ threshold: 0, rate: 40 }], bonuses: [], creation_date: daysAgo(4) },
+  { 
+    id: 1, 
+    user_id: MOCK_JENNA_ID, 
+    name: 'Ultimate Productivity Course', 
+    price: 499, 
+    sales_page_url: 'https://example.com/productivity', 
+    sales_count: 20, 
+    clicks: 450, 
+    commission_tiers: [{ threshold: 0, rate: 20 }, { threshold: 10, rate: 25 }], 
+    bonuses: [{ goal: 20, reward: 250, type: 'sales' }], 
+    creation_date: daysAgo(150), 
+    isPubliclyListed: true,
+    description: `
+## Transform Your Productivity Overnight
+
+Are you tired of endless to-do lists and feeling overwhelmed? The **Ultimate Productivity Course** is a comprehensive, step-by-step system designed to help you reclaim your time, focus on what matters, and achieve your biggest goals.
+
+
+
+### What You'll Learn:
+- The art of deep work and eliminating distractions.
+- A foolproof system for managing tasks and projects.
+- How to build sustainable habits that stick.
+- Energy management techniques to avoid burnout.
+
+This course is perfect for entrepreneurs, freelancers, and students who want to do more in less time. With a proven track record and countless success stories, it's an easy sell for your audience!`
+  },
+  { id: 2, user_id: MOCK_JENNA_ID, name: 'Social Media Mastery', price: 299, sales_page_url: 'https://example.com/social', sales_count: 3, clicks: 80, commission_tiers: [{ threshold: 0, rate: 30 }], bonuses: [], creation_date: daysAgo(30), isPubliclyListed: false, description: 'A course about mastering social media.' },
+  { 
+    id: 3, 
+    user_id: MOCK_ALEX_ID, 
+    name: 'Beginner\'s Guide to Investing', 
+    price: 199, 
+    sales_page_url: 'https://example.com/investing', 
+    sales_count: 5, 
+    clicks: 120, 
+    commission_tiers: [{ threshold: 0, rate: 40 }], 
+    bonuses: [], 
+    creation_date: daysAgo(4), 
+    isPubliclyListed: true,
+    description: `
+## Start Building Your Wealth Today
+
+Investing doesn't have to be complicated. The **Beginner's Guide to Investing** breaks down complex financial topics into simple, actionable steps.
+
+### Who is this for?
+- Anyone who wants to start investing but doesn't know where to begin.
+- Individuals looking to understand stocks, bonds, and ETFs.
+- People who want to plan for their financial future and retirement.
+
+With a **generous 40% commission**, this is a fantastic opportunity for affiliates in the finance, personal development, or entrepreneurship niches. The course is high-value and priced to convert!`
+  },
 ];
 
 export const resources: Resource[] = [
@@ -236,12 +313,17 @@ export const salesHistory: Sale[] = [
     { id: 4, productId: 2, productName: 'Social Media Mastery', saleAmount: 299, commissionAmount: 89.7, date: daysAgo(25), status: 'Pending' },
     { id: 5, productId: 1, productName: 'Ultimate Productivity Course', saleAmount: 499, commissionAmount: 124.75, date: daysAgo(10), status: 'Pending' },
     { id: 6, productId: 3, productName: 'Beginner\'s Guide to Investing', saleAmount: 199, commissionAmount: 79.6, date: daysAgo(3), status: 'Pending' },
+    { id: 7, productId: 1, productName: 'Ultimate Productivity Course', saleAmount: 499, commissionAmount: 124.75, date: daysAgo(80), status: 'Cleared' },
+    { id: 8, productId: 1, productName: 'Ultimate Productivity Course', saleAmount: 499, commissionAmount: 124.75, date: daysAgo(75), status: 'Cleared' },
+    { id: 9, productId: 3, productName: 'Beginner\'s Guide to Investing', saleAmount: 199, commissionAmount: 79.6, date: daysAgo(5), status: 'Cleared' },
 ];
 
 export const payouts: Payout[] = [
     { id: 1, user_id: MOCK_ELENA_ID, affiliate_name: 'Elena Rodriguez', affiliate_avatar: users.find(u=>u.id===MOCK_ELENA_ID)!.avatar, amount: 848.9, period: 'Oct 2023', due_date: daysAgo(15), status: 'Paid', sales: [salesHistory[0], salesHistory[1]] },
-    { id: 2, user_id: MOCK_MARK_ID, affiliate_name: 'Mark Brown', affiliate_avatar: users.find(u=>u.id===MOCK_MARK_ID)!.avatar, amount: 524.3, period: 'Oct 2023', due_date: daysAgo(15), status: 'Paid', sales: [] },
-    { id: 3, user_id: MOCK_ELENA_ID, affiliate_name: 'Elena Rodriguez', affiliate_avatar: users.find(u=>u.id===MOCK_ELENA_ID)!.avatar, amount: 649.6, period: 'Nov 2023', due_date: daysAgo(2), status: 'Due', sales: [salesHistory[2], salesHistory[3], salesHistory[4]] },
+    { id: 2, user_id: MOCK_MARK_ID, affiliate_name: 'Mark Brown', affiliate_avatar: users.find(u=>u.id===MOCK_MARK_ID)!.avatar, amount: 524.3, period: 'Oct 2023', due_date: daysAgo(15), status: 'Paid', sales: [salesHistory[7]] },
+    { id: 3, user_id: MOCK_ELENA_ID, affiliate_name: 'Elena Rodriguez', affiliate_avatar: users.find(u=>u.id===MOCK_ELENA_ID)!.avatar, amount: 649.6, period: 'Nov 2023', due_date: daysAgo(2), status: 'Due', sales: [salesHistory[2], salesHistory[3], salesHistory[4], salesHistory[6]] },
+    { id: 4, user_id: MOCK_JENNA_ID, affiliate_name: 'Jenna Smith', affiliate_avatar: users.find(u=>u.id===MOCK_JENNA_ID)!.avatar, amount: 79.6, period: 'Nov 2023', due_date: daysAgo(2), status: 'Due', sales: [salesHistory[8]]},
+    { id: 5, user_id: MOCK_SARA_ID, affiliate_name: 'Sara Khan', affiliate_avatar: users.find(u=>u.id===MOCK_SARA_ID)!.avatar, amount: 79.6, period: 'Nov 2023', due_date: daysAgo(2), status: 'Due', sales: [salesHistory[5]]},
 ];
 
 export const payments: Payment[] = [
@@ -252,6 +334,8 @@ export const payments: Payment[] = [
     { id: 5, user_id: MOCK_JENNA_ID, amount: 49, date: daysAgo(60), plan: 'Growth Plan' },
     { id: 6, user_id: MOCK_JENNA_ID, amount: 49, date: daysAgo(30), plan: 'Growth Plan' },
     { id: 7, user_id: MOCK_ALEX_ID, amount: 19, date: daysAgo(4), plan: 'Starter Plan'},
+    { id: 8, user_id: MOCK_EVA_ID, amount: 19, date: daysAgo(45), plan: 'Starter Plan'},
+    { id: 9, user_id: MOCK_EVA_ID, amount: 19, date: daysAgo(15), plan: 'Starter Plan'},
 ];
 
 export const communications: Communication[] = [

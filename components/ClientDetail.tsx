@@ -29,6 +29,10 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, affiliates, product
     const [selectedPlan, setSelectedPlan] = useState(client.currentPlan || '');
     const [actionToConfirm, setActionToConfirm] = useState<'suspend' | 'delete' | null>(null);
 
+    const ltv = payments.reduce((sum, p) => sum + p.amount, 0);
+    const currentPlanDetails = client.currentPlan ? planDetails[client.currentPlan as keyof typeof planDetails] : null;
+    const mrr = currentPlanDetails ? (client.billingCycle === 'annual' ? currentPlanDetails.annualPrice / 12 : currentPlanDetails.price) : 0;
+
     const handleSavePlan = () => {
         onPlanChange(client.id, selectedPlan);
         setIsPlanModalOpen(false);
@@ -111,13 +115,32 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, affiliates, product
                     </div>
                 </div>
 
+                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Lifetime Value</h4>
+                      <p className="text-3xl font-bold text-gray-800 dark:text-white">${ltv.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">MRR</h4>
+                      <p className="text-3xl font-bold text-gray-800 dark:text-white">${mrr.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Active Affiliates</h4>
+                      <p className="text-3xl font-bold text-gray-800 dark:text-white">{affiliates.length}</p>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Products</h4>
+                      <p className="text-3xl font-bold text-gray-800 dark:text-white">{products.length}</p>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-1 space-y-6">
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
                             <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Subscription</h3>
                             <div className="space-y-2">
                                 <p><span className="font-semibold text-gray-500 dark:text-gray-400">Current Plan:</span> {client.currentPlan}</p>
-                                <p><span className="font-semibold text-gray-500 dark:text-gray-400">Price:</span> ${planDetails[client.currentPlan as keyof typeof planDetails].price}/mo</p>
+                                <p><span className="font-semibold text-gray-500 dark:text-gray-400">Price:</span> ${currentPlanDetails ? currentPlanDetails.price : 'N/A'}/mo</p>
                             </div>
                             <button onClick={() => setIsPlanModalOpen(true)} className="w-full mt-4 px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">
                                 Change Plan

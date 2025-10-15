@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { User, planDetails, Product, Payment } from '../data/mockData';
 import ClientDetail from './ClientDetail';
@@ -20,7 +21,8 @@ const ClientManagement: React.FC<ClientManagementProps> = ({ clients, allUsers, 
 
     const clientData = useMemo(() => {
         return clients.map(client => {
-            const affiliateCount = allUsers.filter(u => u.partnerIds?.includes(client.id)).length;
+            // FIX: Corrected property access from 'partnerIds' to 'partnerships' and used .some() to check for creatorId.
+            const affiliateCount = allUsers.filter(u => u.partnerships?.some(p => p.creatorId === client.id)).length;
             const productCount = allProducts.filter(p => p.user_id === client.id).length;
             const ltv = allPayments.filter(p => p.user_id === client.id).reduce((sum, p) => sum + p.amount, 0);
             return { ...client, affiliateCount, productCount, ltv };
@@ -41,7 +43,8 @@ const ClientManagement: React.FC<ClientManagementProps> = ({ clients, allUsers, 
     }, [clientData, planFilter, searchQuery]);
     
     if (selectedClient) {
-        const clientAffiliates = allUsers.filter(u => u.partnerIds?.includes(selectedClient.id));
+        // FIX: Corrected property access from 'partnerIds' to 'partnerships' and used .some() to check for creatorId.
+        const clientAffiliates = allUsers.filter(u => u.partnerships?.some(p => p.creatorId === selectedClient.id));
         const clientProducts = allProducts.filter(p => p.user_id === selectedClient.id);
         const clientPayments = allPayments.filter(p => p.user_id === selectedClient.id);
 

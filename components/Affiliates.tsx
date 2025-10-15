@@ -1,14 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { User, Payout } from '../data/mockData';
-import { Plan } from '../src/App';
+// FIX: Updated Plan import to resolve circular dependency.
+import { User, Payout, Plan, Partnership } from '../data/mockData';
 import AffiliateDetail from './AffiliateDetail';
 import AddAffiliateModal from './AddAffiliateModal';
 import ConfirmationModal from './ConfirmationModal';
 import InviteAffiliateModal from './InviteAffiliateModal';
-import { supabase } from '../src/lib/supabaseClient';
 import EmptyState from './EmptyState';
 
-const getStatusBadge = (status: User['status']) => {
+const getStatusBadge = (status: Partnership['status']) => {
   if (!status) return '';
   switch (status) {
     case 'Active':
@@ -16,7 +15,6 @@ const getStatusBadge = (status: User['status']) => {
     case 'Pending':
       return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
     case 'Inactive':
-    case 'Suspended':
       return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
   }
 };
@@ -28,26 +26,27 @@ const SortIcon: React.FC<{ direction: 'ascending' | 'descending' | 'none' }> = (
     return direction === 'ascending' ? (
         <svg className="h-4 w-4 inline-block ml-1 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
     ) : (
-        <svg className="h-4 w-4 inline-block ml-1 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7 7" /></svg>
+        <svg className="h-4 w-4 inline-block ml-1 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
     );
 };
 
 type SortableKey = 'name' | 'sales' | 'commission';
 
-// FIX: Define AffiliatesProps interface
 interface AffiliatesProps {
   affiliates: User[];
+  allUsers: User[];
   payouts: Payout[];
   showToast: (message: string) => void;
   currentPlan: Plan;
   currentUser: User;
   refetchData: () => void;
+  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
 }
 
-const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, payouts, showToast, currentPlan, currentUser, refetchData }) => {
+const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, allUsers, setUsers, payouts, showToast, currentPlan, currentUser, refetchData }) => {
     const [selectedAffiliate, setSelectedAffiliate] = useState<User | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState<'All' | User['status']>('All');
+    const [statusFilter, setStatusFilter] = useState<'All' | Partnership['status']>('All');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [editingAffiliate, setEditingAffiliate] = useState<User | null>(null);
@@ -65,105 +64,97 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, payouts, showToast,
         setTimeout(() => setInviteLinkCopied(false), 2000);
     };
 
-    const handleStatusChange = async (affiliateId: string, newStatus: User['status']) => {
-        const { error } = await supabase
-            .from('partnerships')
-            .update({ status: newStatus })
-            .eq('creator_id', currentUser.id)
-            .eq('affiliate_id', affiliateId);
-        
-        if (error) {
-            showToast(`Error: ${error.message}`);
-        } else {
-            showToast('Affiliate status updated!');
-            refetchData();
-        }
+    const handleStatusChange = (affiliateId: string, newStatus: Partnership['status']) => {
+        setUsers(prevUsers => 
+            prevUsers.map(user => {
+                if (user.id === affiliateId) {
+                    const updatedPartnerships = user.partnerships?.map(p => 
+                        p.creatorId === currentUser.id ? { ...p, status: newStatus } : p
+                    );
+                    return { ...user, partnerships: updatedPartnerships };
+                }
+                return user;
+            })
+        );
+        showToast(`Affiliate status updated to ${newStatus}!`);
     };
 
-    const handleSaveAffiliate = async (affiliateData: User) => {
+    const handleSaveAffiliate = (affiliateData: User) => {
         const isEdit = affiliates.some(u => u.id === affiliateData.id);
-        
-        const profileData = {
-            id: affiliateData.id,
-            name: affiliateData.name,
-            email: affiliateData.email,
-            coupon_code: affiliateData.couponCode,
-            avatar: affiliateData.avatar || `https://i.pravatar.cc/150?u=${affiliateData.email}`,
-            roles: ['affiliate']
-        };
 
         if (isEdit) {
-            const { error } = await supabase.from('profiles').update(profileData).eq('id', affiliateData.id);
-            if(error) showToast(`Error: ${error.message}`);
-            else showToast("Affiliate updated!");
+            setUsers(prevUsers => prevUsers.map(u => 
+                u.id === affiliateData.id ? { ...u, ...affiliateData } : u
+            ));
+            showToast("Affiliate updated!");
         } else {
-            const { data: newProfile, error } = await supabase.from('profiles').insert(profileData).select().single();
-            if (error || !newProfile) {
-                showToast(`Error: ${error?.message}`);
-                return;
-            }
-            const { error: partnershipError } = await supabase.from('partnerships').insert({
-                creator_id: currentUser.id,
-                affiliate_id: newProfile.id,
-                status: 'Active'
-            });
-            if (partnershipError) showToast(`Error: ${partnershipError.message}`);
-            else showToast("Affiliate added and approved!");
+            const newUser: User = {
+                id: crypto.randomUUID(),
+                name: affiliateData.name,
+                email: affiliateData.email,
+                avatar: `https://i.pravatar.cc/150?u=${affiliateData.email}`,
+                roles: ['affiliate'],
+                couponCode: affiliateData.couponCode,
+                joinDate: new Date().toISOString().split('T')[0],
+                status: 'Active',
+                partnerships: [{ creatorId: currentUser.id, status: 'Active' }],
+                sales: 0, commission: 0, clicks: 0, conversionRate: 0,
+            };
+            setUsers(prevUsers => [...prevUsers, newUser]);
+            showToast("Affiliate added and approved!");
         }
-        refetchData();
     };
 
-    const handleDeleteAffiliate = async () => {
+    const handleDeleteAffiliate = () => {
         if (affiliateToDelete) {
-            const { error } = await supabase
-                .from('partnerships')
-                .delete()
-                .eq('creator_id', currentUser.id)
-                .eq('affiliate_id', affiliateToDelete.id);
-
-            if (error) {
-                showToast(`Error: ${error.message}`);
-            } else {
-                showToast("Affiliate removed from your program.");
-            }
+             setUsers(prevUsers => 
+                prevUsers.map(user => {
+                    if (user.id === affiliateToDelete.id) {
+                        return {
+                            ...user,
+                            partnerships: user.partnerships?.filter(p => p.creatorId !== currentUser.id)
+                        };
+                    }
+                    return user;
+                })
+            );
+            showToast(`"${affiliateToDelete.name}" removed from your program.`);
             setAffiliateToDelete(null);
-            refetchData();
         }
     };
 
-    const handleSendInvite = async (email: string) => {
-        const { data: existingUser } = await supabase.from('profiles').select('id').eq('email', email).single();
+    const handleSendInvite = (email: string) => {
+        const existingUser = allUsers.find(u => u.email === email);
 
-        let affiliateId = existingUser?.id;
-
-        if (!affiliateId) {
-            const { data: newProfile, error } = await supabase.from('profiles').insert({
-                name: `(${email.split('@')[0]})`, email, roles: ['affiliate'], status: 'Pending',
-                avatar: `https://i.pravatar.cc/150?u=${email}`, joinDate: new Date().toISOString().split('T')[0],
-            }).select('id').single();
-            if (error || !newProfile) {
-                showToast(`Error creating profile: ${error?.message}`);
-                return;
-            }
-            affiliateId = newProfile.id;
-        }
-
-        const { error: partnershipError } = await supabase.from('partnerships').insert({
-            creator_id: currentUser.id, affiliate_id: affiliateId, status: 'Pending'
-        }).select();
-
-        if (partnershipError) {
-             if (partnershipError.code === '23505') { // unique constraint violation
+        if (existingUser) {
+            if (existingUser.partnerships?.some(p => p.creatorId === currentUser.id)) {
                 showToast("This affiliate is already in your program or has a pending invite.");
             } else {
-                showToast(`Error sending invite: ${partnershipError.message}`);
+                setUsers(prevUsers => prevUsers.map(u => 
+                    u.id === existingUser.id 
+                    ? { ...u, partnerships: [...(u.partnerships || []), { creatorId: currentUser.id, status: 'Pending' }] } 
+                    : u
+                ));
+                showToast(`Invitation sent to ${email}.`);
             }
         } else {
+            const newUser: User = {
+                id: crypto.randomUUID(),
+                name: `(${email.split('@')[0]})`,
+                email: email,
+                avatar: `https://i.pravatar.cc/150?u=${email}`,
+                roles: ['affiliate'],
+                joinDate: new Date().toISOString().split('T')[0],
+                status: 'Active',
+                partnerships: [{ creatorId: currentUser.id, status: 'Pending' }],
+                sales: 0, commission: 0, clicks: 0, conversionRate: 0,
+            };
+            setUsers(prevUsers => [...prevUsers, newUser]);
             showToast(`Invitation sent to ${email}.`);
-            refetchData();
         }
         setIsInviteModalOpen(false);
     };
+
 
     const handleOpenAddModal = () => {
         setEditingAffiliate(null);
@@ -178,8 +169,9 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, payouts, showToast,
     const filteredAffiliates = useMemo(() => {
         return affiliates
             .filter(affiliate => {
+                const partnership = affiliate.partnerships?.find(p => p.creatorId === currentUser.id);
                 if (statusFilter === 'All') return true;
-                return affiliate.status === statusFilter;
+                return partnership?.status === statusFilter;
             })
             .filter(affiliate => {
                 const query = searchQuery.toLowerCase();
@@ -188,7 +180,7 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, payouts, showToast,
                     affiliate.email.toLowerCase().includes(query)
                 );
             });
-    }, [affiliates, statusFilter, searchQuery]);
+    }, [affiliates, statusFilter, searchQuery, currentUser.id]);
 
     const sortedAffiliates = useMemo(() => {
         let sortableItems = [...filteredAffiliates];
@@ -289,7 +281,7 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, payouts, showToast,
             />
             <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as 'All' | User['status'])}
+                onChange={(e) => setStatusFilter(e.target.value as 'All' | Partnership['status'])}
                 className="w-full sm:w-auto px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
             >
                 <option value="All">All Statuses</option>
@@ -329,39 +321,44 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, payouts, showToast,
           </thead>
           <tbody>
             {sortedAffiliates.length > 0 ? (
-                sortedAffiliates.map((affiliate) => (
-                <tr key={affiliate.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 animate-fade-in-up">
-                    <th scope="row" className="flex items-center px-6 py-4 text-gray-900 whitespace-nowrap dark:text-white">
-                    <img className="w-10 h-10 rounded-full" src={affiliate.avatar} alt={`${affiliate.name} image`} />
-                    <div className="pl-3">
-                        <div className="text-base font-semibold">{affiliate.name}</div>
-                        <div className="font-normal text-gray-500">{affiliate.email}</div>
-                    </div>
-                    </th>
-                    <td className="px-6 py-4">{affiliate.sales || 0}</td>
-                    <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">${(affiliate.commission || 0).toLocaleString()}</td>
-                    <td className="px-6 py-4 font-mono text-gray-700 dark:text-gray-300">{affiliate.couponCode || 'N/A'}</td>
-                    <td className="px-6 py-4">
-                    <span className={`text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full ${getStatusBadge(affiliate.status)}`}>
-                        {affiliate.status}
-                    </span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                        {affiliate.status === 'Pending' ? (
-                            <div className="flex justify-center space-x-2">
-                                <button onClick={() => handleStatusChange(affiliate.id, 'Active')} className="font-medium text-green-600 dark:text-green-500 hover:underline">Approve</button>
-                                <button onClick={() => handleStatusChange(affiliate.id, 'Inactive')} className="font-medium text-red-600 dark:text-red-500 hover:underline">Deny</button>
+                sortedAffiliates.map((affiliate) => {
+                    const partnership = affiliate.partnerships?.find(p => p.creatorId === currentUser.id);
+                    if (!partnership) return null;
+
+                    return (
+                        <tr key={affiliate.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 animate-fade-in-up">
+                            <th scope="row" className="flex items-center px-6 py-4 text-gray-900 whitespace-nowrap dark:text-white">
+                            <img className="w-10 h-10 rounded-full" src={affiliate.avatar} alt={`${affiliate.name} image`} />
+                            <div className="pl-3">
+                                <div className="text-base font-semibold">{affiliate.name}</div>
+                                <div className="font-normal text-gray-500">{affiliate.email}</div>
                             </div>
-                        ) : (
-                             <div className="flex justify-center space-x-2">
-                                <button onClick={() => setSelectedAffiliate(affiliate)} className="font-medium text-cyan-600 dark:text-cyan-500 hover:underline">Details</button>
-                                <button onClick={() => handleOpenEditModal(affiliate)} className="font-medium text-blue-600 dark:text-blue-500 hover:underline">Edit</button>
-                                <button onClick={() => setAffiliateToDelete(affiliate)} className="font-medium text-red-600 dark:text-red-500 hover:underline">Remove</button>
-                             </div>
-                        )}
-                    </td>
-                </tr>
-                ))
+                            </th>
+                            <td className="px-6 py-4">{affiliate.sales || 0}</td>
+                            <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">${(affiliate.commission || 0).toLocaleString()}</td>
+                            <td className="px-6 py-4 font-mono text-gray-700 dark:text-gray-300">{affiliate.couponCode || 'N/A'}</td>
+                            <td className="px-6 py-4">
+                            <span className={`text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full ${getStatusBadge(partnership.status)}`}>
+                                {partnership.status}
+                            </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                                {partnership.status === 'Pending' ? (
+                                    <div className="flex justify-center space-x-2">
+                                        <button onClick={() => handleStatusChange(affiliate.id, 'Active')} className="font-medium text-green-600 dark:text-green-500 hover:underline">Approve</button>
+                                        <button onClick={() => handleStatusChange(affiliate.id, 'Inactive')} className="font-medium text-red-600 dark:text-red-500 hover:underline">Deny</button>
+                                    </div>
+                                ) : (
+                                     <div className="flex justify-center space-x-2">
+                                        <button onClick={() => setSelectedAffiliate(affiliate)} className="font-medium text-cyan-600 dark:text-cyan-500 hover:underline">Details</button>
+                                        <button onClick={() => handleOpenEditModal(affiliate)} className="font-medium text-blue-600 dark:text-blue-500 hover:underline">Edit</button>
+                                        <button onClick={() => setAffiliateToDelete(affiliate)} className="font-medium text-red-600 dark:text-red-500 hover:underline">Remove</button>
+                                     </div>
+                                )}
+                            </td>
+                        </tr>
+                    );
+                })
             ) : (
                 <tr>
                     <td colSpan={6} className="py-4">

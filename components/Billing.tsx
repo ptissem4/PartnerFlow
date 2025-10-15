@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
-import { User, Product, planDetails } from '../data/mockData';
-import { Plan } from '../src/App';
+// FIX: Updated Plan import to resolve circular dependency.
+import { User, Product, planDetails, Plan } from '../data/mockData';
 
 interface BillingProps {
     currentUser: User;

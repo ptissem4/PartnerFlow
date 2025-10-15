@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Payout, User, UserSettings } from '../data/mockData';
 import PayoutDetailModal from './PayoutDetailModal';

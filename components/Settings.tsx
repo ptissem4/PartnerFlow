@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { User, UserSettings, planDetails } from '../data/mockData';
-import { Plan, AppView } from '../src/App';
+// FIX: The Plan type is now imported from mockData.ts to resolve a circular dependency.
+import { User, UserSettings, planDetails, Plan } from '../data/mockData';
+import { AppView } from '../src/App';
 import ConfirmationModal from './ConfirmationModal';
 
 
@@ -81,8 +82,9 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, userSettings, onSettin
         });
         setShowDisconnectConfirm(false);
     };
-
-    const currentPlan = planDetails[currentUser.currentPlan as keyof typeof planDetails] as Plan;
+    
+    const currentPlanName = currentUser.currentPlan || 'Starter Plan';
+    const currentPlan = planDetails[currentPlanName as keyof typeof planDetails] as Plan;
     const isStripeConnected = userSettings.integrations.stripe === 'Connected';
     
   return (
@@ -163,7 +165,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, userSettings, onSettin
       
       {/* API Access */}
        <SettingsCard title="API Access">
-        {currentPlan.features.hasApiAccess ? (
+        {currentPlan && currentPlan.features.hasApiAccess ? (
             <>
                 <p className="text-gray-600 dark:text-gray-400">
                     Use your API key to integrate PartnerFlow with other services. Do not share your key publicly.

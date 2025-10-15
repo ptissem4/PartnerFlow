@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Product, CommissionTier, User, Resource } from '../data/mockData';
-import { Plan } from '../src/App';
+// FIX: Updated Plan import to resolve circular dependency.
+import { Product, CommissionTier, User, Resource, Plan } from '../data/mockData';
 import AddProductModal from './AddProductModal';
 import ConfirmationModal from './ConfirmationModal';
 import ProductDetail from './ProductDetail';
@@ -9,6 +9,8 @@ import EmptyState from './EmptyState';
 
 interface ProductsProps {
     products: Product[];
+    setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+    useMockData: boolean;
     resources: Resource[];
     showToast: (message: string) => void;
     currentPlan: Plan;
@@ -26,7 +28,7 @@ const formatCommissionDisplay = (tiers: CommissionTier[]) => {
     return displayText;
 };
 
-const Products: React.FC<ProductsProps> = ({ products, resources, showToast, currentPlan, currentUser, refetchData }) => {
+const Products: React.FC<ProductsProps> = ({ products, setProducts, useMockData, resources, showToast, currentPlan, currentUser, refetchData }) => {
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [productToEdit, setProductToEdit] = useState<Product | null>(null);
@@ -40,6 +42,35 @@ const Products: React.FC<ProductsProps> = ({ products, resources, showToast, cur
     };
     
     const handleSaveProduct = async (productData: Partial<Product>, id?: number) => {
+        if (useMockData) {
+            if (id) { // Editing in demo mode
+                setProducts(prev => prev.map(p => p.id === id ? { ...p, ...productData } as Product : p));
+                showToast("Product updated in demo mode!");
+                if (selectedProduct?.id === id) {
+                     setSelectedProduct(prev => ({...prev, ...productData} as Product));
+                }
+            } else { // Creating in demo mode
+                const newProduct: Product = {
+                    id: Date.now(),
+                    user_id: currentUser.id,
+                    name: productData.name || 'New Product',
+                    price: productData.price || 0,
+                    sales_page_url: productData.sales_page_url || '',
+                    commission_tiers: productData.commission_tiers || [],
+                    bonuses: productData.bonuses || [],
+                    sales_count: 0,
+                    clicks: 0,
+                    creation_date: new Date().toISOString().split('T')[0],
+                    isPubliclyListed: productData.isPubliclyListed || false,
+                    description: productData.description || '',
+                };
+                setProducts(prev => [...prev, newProduct]);
+                showToast("Product added in demo mode!");
+            }
+            return;
+        }
+
+        // Supabase logic
         if (id) { // Editing
             const { id: _, creation_date, sales_count, clicks, ...updateData } = productData;
             const { error } = await supabase.from('products').update(updateData).eq('id', id);
@@ -61,6 +92,13 @@ const Products: React.FC<ProductsProps> = ({ products, resources, showToast, cur
     
     const handleDeleteProduct = async () => {
         if (productToDelete) {
+             if (useMockData) {
+                setProducts(prev => prev.filter(p => p.id !== productToDelete.id));
+                showToast("Product deleted in demo mode.");
+                setProductToDelete(null);
+                return;
+            }
+
             const { error } = await supabase.from('products').delete().eq('id', productToDelete.id);
             if (error) {
                 showToast(`Error: ${error.message}`);
@@ -142,8 +180,14 @@ const Products: React.FC<ProductsProps> = ({ products, resources, showToast, cur
              {products.length > 0 ? (
                 products.map((product) => (
                 <tr key={product.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 animate-fade-in-up">
-                    <td scope="row" className="px-6 py-4 font-semibold text-gray-900 dark:text-white cursor-pointer hover:underline" onClick={() => setSelectedProduct(product)}>
-                        {product.name}
+                    <td scope="row" className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
+                        <div 
+                          className="flex items-center gap-2 cursor-pointer hover:underline"
+                          onClick={() => setSelectedProduct(product)}
+                        >
+                          {product.name}
+                          {product.isPubliclyListed && <EyeIcon />}
+                        </div>
                     </td>
                     <td className="px-6 py-4">${product.price.toLocaleString()}</td>
                     <td className="px-6 py-4">{product.sales_count}</td>
@@ -179,5 +223,14 @@ const Products: React.FC<ProductsProps> = ({ products, resources, showToast, cur
 };
 
 const TagIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5a2 2 0 012 2v5a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zm0 0v11m0-11h11" /></svg>;
+// FIX: Replaced the invalid 'title' prop with a <title> element for accessibility and to fix the TypeScript error.
+const EyeIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <title>Publicly listed on marketplace</title>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+);
+
 
 export default Products;

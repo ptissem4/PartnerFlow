@@ -7,6 +7,7 @@ interface LandingPageProps {
   onNavigateToRegister: () => void;
   onNavigateToDashboard?: () => void;
   onNavigateToPartnerflowSignup: () => void;
+  onNavigateToMarketplace: () => void;
   platformSettings: PlatformSettingsType;
 }
 
@@ -69,7 +70,7 @@ const FaqItem: React.FC<{ question: string; children: React.ReactNode }> = ({ qu
                 onClick={() => setIsOpen(!isOpen)}
             >
                 <h4 className="text-lg font-medium">{question}</h4>
-                <svg className={`w-5 h-5 transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                <svg className={`w-5 h-5 transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"></path></svg>
             </button>
             <div className={`grid transition-all duration-500 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
                  <div className="overflow-hidden">
@@ -109,7 +110,7 @@ const features = [
     }
 ];
 
-const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogin, onNavigateToRegister, onNavigateToDashboard, onNavigateToPartnerflowSignup, platformSettings }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogin, onNavigateToRegister, onNavigateToDashboard, onNavigateToPartnerflowSignup, onNavigateToMarketplace, platformSettings }) => {
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
     const [newsletterEmail, setNewsletterEmail] = useState('');
     const [newsletterError, setNewsletterError] = useState('');
@@ -167,6 +168,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogi
                     </a>
                     <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600 dark:text-gray-300">
                         <a href="#features" className="hover:text-cyan-500 transition-colors">Features</a>
+                        <button onClick={onNavigateToMarketplace} className="hover:text-cyan-500 transition-colors">Marketplace</button>
                         <a href="#pricing" className="hover:text-cyan-500 transition-colors">Pricing</a>
                         <a href="#faq" className="hover:text-cyan-500 transition-colors">FAQ</a>
                     </nav>

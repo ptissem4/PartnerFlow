@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Theme, ActiveView } from '../src/App';
 import { User, PlatformSettings } from '../data/mockData';
