@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
@@ -59,13 +60,15 @@ import CreatorAffiliateSignupPage from '../components/CreatorAffiliateSignupPage
 import AffiliateSignupPage from '../components/AffiliateSignupPage';
 import Financials from '../components/Financials';
 import LoadingSpinner from '../components/LoadingSpinner';
+import CheckoutPage from '../components/CheckoutPage';
+
 
 // Types
 export type Page = 'Dashboard' | 'Affiliates' | 'Products' | 'Resources' | 'Payouts' | 'Reports' | 'Communicate' | 'Billing' | 'Settings';
 export type AdminPage = 'AdminDashboard' | 'Clients' | 'Analytics' | 'PartnerflowAffiliates' | 'PlatformSettings' | 'Financials';
 export type Theme = 'light' | 'dark';
 export type ActiveView = 'creator' | 'affiliate';
-export type AppView = 'landing' | 'login_selector' | 'creator_login' | 'affiliate_login' | 'register' | 'creator_affiliate_signup' | 'partnerflow_affiliate_signup' | 'app' | 'stripe_connect' | 'marketplace' | 'not_found' | 'affiliate_apply_signup' | 'affiliate_signup';
+export type AppView = 'landing' | 'login_selector' | 'creator_login' | 'affiliate_login' | 'register' | 'creator_affiliate_signup' | 'partnerflow_affiliate_signup' | 'app' | 'stripe_connect' | 'marketplace' | 'not_found' | 'affiliate_apply_signup' | 'affiliate_signup' | 'checkout';
 
 const App: React.FC = () => {
     // State management
@@ -78,6 +81,8 @@ const App: React.FC = () => {
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [selectedCreatorForAffiliateSignup, setSelectedCreatorForAffiliateSignup] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [planToCheckout, setPlanToCheckout] = useState<{ plan: Plan, cycle: 'monthly' | 'annual'} | null>(null);
+
 
     // Data state
     const [users, setUsers] = useState<User[]>([]);
@@ -261,6 +266,61 @@ const App: React.FC = () => {
         }
         return { success: false, error: 'An unknown error occurred.' };
     };
+    
+    const handlePlanChange = (newPlanName: string, billingCycle: 'monthly' | 'annual') => {
+        const plan = planDetails[newPlanName as keyof typeof planDetails];
+        if(plan) {
+            setPlanToCheckout({ plan, cycle: billingCycle });
+            setAppView('checkout');
+        }
+    };
+    
+    const handleSubscriptionSuccess = async () => {
+        if (!currentUser || !planToCheckout) return;
+
+        const newPlan = planToCheckout.plan;
+        const newCycle = planToCheckout.cycle;
+        const amount = newCycle === 'annual' ? newPlan.annualPrice : newPlan.price;
+
+        if (useMockData) {
+            setCurrentUser(u => u ? { ...u, currentPlan: newPlan.name, billingCycle: newCycle, trialEndsAt: undefined } : null);
+            setPayments(p => [...p, { id: Date.now(), user_id: currentUser.id, amount, date: new Date().toISOString().split('T')[0], plan: newPlan.name }]);
+            showToast(`Successfully subscribed to the ${newPlan.name}!`);
+            setAppView('app');
+            setActivePage('Billing');
+            setPlanToCheckout(null);
+            return;
+        }
+
+        const { error: userUpdateError } = await supabase
+            .from('users')
+            .update({ currentPlan: newPlan.name, billingCycle: newCycle, trialEndsAt: null })
+            .eq('id', currentUser.id);
+
+        if (userUpdateError) {
+            showToast(`Error: ${userUpdateError.message}`);
+            return;
+        }
+
+        const { error: paymentInsertError } = await supabase.from('payments').insert({
+            user_id: currentUser.id,
+            amount,
+            date: new Date().toISOString().split('T')[0],
+            plan: newPlan.name
+        });
+
+        if (paymentInsertError) {
+            showToast(`Error recording payment: ${paymentInsertError.message}`);
+        } else {
+            showToast(`Successfully subscribed to the ${newPlan.name}!`);
+        }
+
+        await fetchData(currentUser); // Refetch all data to update UI
+        setAppView('app');
+        setActivePage('Billing');
+        setPlanToCheckout(null);
+    };
+
 
     const handleAffiliateSignup = (name: string, email: string) => {
         const newAffiliate: User = { /* ... */ } as User;
@@ -318,6 +378,14 @@ const App: React.FC = () => {
                 />;
             case 'stripe_connect':
                 return <StripeConnectPage onConnectSuccess={() => {showToast("Stripe connected!"); setAppView('app'); setActivePage('Settings')}} onCancel={() => setAppView('app')} />;
+            case 'checkout':
+                return <CheckoutPage
+                            plan={planToCheckout!.plan}
+                            cycle={planToCheckout!.cycle}
+                            onSuccess={handleSubscriptionSuccess}
+                            onCancel={() => { setAppView('app'); setActivePage('Billing')}}
+                            userEmail={currentUser?.email || ''}
+                        />;
             case 'login_selector':
                 return <LoginSelector onSelect={(view) => setAppView(view)} />;
             default:
@@ -372,7 +440,7 @@ const App: React.FC = () => {
         }
 
         if (isTrialExpired) {
-            return <Billing currentUser={currentUser} affiliates={[]} products={[]} onPlanChange={() => {showToast("Plan updated!")}} isTrialExpired={true} />;
+            return <Billing currentUser={currentUser} affiliates={[]} products={[]} onPlanChange={handlePlanChange} isTrialExpired={true} />;
         }
         
         const myAffiliates = users.filter(u => u.partnerships?.some(p => p.creatorId === currentUser.id));
@@ -405,7 +473,7 @@ const App: React.FC = () => {
                     showToast("Message sent!");
                 }}/>;
             case 'Billing':
-                return <Billing currentUser={currentUser} affiliates={myAffiliates} products={myProducts} onPlanChange={()=>{showToast("Plan updated!")}} isTrialExpired={isTrialExpired} />;
+                return <Billing currentUser={currentUser} affiliates={myAffiliates} products={myProducts} onPlanChange={handlePlanChange} isTrialExpired={isTrialExpired} />;
             case 'Settings':
                 return <Settings currentUser={currentUser} userSettings={userSettings!} onSettingsChange={setUserSettings} setAppView={setAppView} />;
             default:
