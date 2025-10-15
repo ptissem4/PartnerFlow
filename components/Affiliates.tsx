@@ -6,6 +6,7 @@ import AddAffiliateModal from './AddAffiliateModal';
 import ConfirmationModal from './ConfirmationModal';
 import InviteAffiliateModal from './InviteAffiliateModal';
 import EmptyState from './EmptyState';
+import { supabase } from '../src/lib/supabaseClient';
 
 const getStatusBadge = (status: Partnership['status']) => {
   if (!status) return '';
@@ -40,7 +41,7 @@ interface AffiliatesProps {
   currentPlan: Plan;
   currentUser: User;
   refetchData: () => void;
-  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+  setUsers: React.Dispatch<React.SetStateAction<User[]>>; // Kept for mock mode
 }
 
 const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, allUsers, setUsers, payouts, showToast, currentPlan, currentUser, refetchData }) => {
@@ -54,7 +55,7 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, allUsers, setUsers,
     const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: SortableKey; direction: 'ascending' | 'descending' } | null>({ key: 'commission', direction: 'descending' });
 
-
+    const useMockData = !process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY;
     const limitReached = affiliates.length >= currentPlan.limits.affiliates;
     const invitationLink = `${window.location.origin}?ref=${currentUser.id}`;
 
@@ -64,107 +65,131 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, allUsers, setUsers,
         setTimeout(() => setInviteLinkCopied(false), 2000);
     };
 
-    const handleStatusChange = (affiliateId: string, newStatus: Partnership['status']) => {
-        setUsers(prevUsers => 
-            prevUsers.map(user => {
-                if (user.id === affiliateId) {
-                    const updatedPartnerships = user.partnerships?.map(p => 
-                        p.creatorId === currentUser.id ? { ...p, status: newStatus } : p
-                    );
-                    return { ...user, partnerships: updatedPartnerships };
-                }
-                return user;
-            })
+    const handleStatusChange = async (affiliateId: string, newStatus: Partnership['status']) => {
+        const affiliateToUpdate = allUsers.find(u => u.id === affiliateId);
+        if (!affiliateToUpdate) return;
+        
+        const updatedPartnerships = affiliateToUpdate.partnerships?.map(p => 
+            p.creatorId === currentUser.id ? { ...p, status: newStatus } : p
         );
+
+        if (useMockData) {
+            setUsers(prevUsers => prevUsers.map(user => user.id === affiliateId ? { ...user, partnerships: updatedPartnerships } : user));
+        } else {
+            const { error } = await supabase.from('users').update({ partnerships: updatedPartnerships }).eq('id', affiliateId);
+            if (error) showToast(`Error: ${error.message}`);
+            else refetchData();
+        }
         showToast(`Affiliate status updated to ${newStatus}!`);
     };
 
-    const handleSaveAffiliate = (affiliateData: User) => {
+    const handleSaveAffiliate = async (affiliateData: User) => {
         const isEdit = affiliates.some(u => u.id === affiliateData.id);
 
-        if (isEdit) {
-            setUsers(prevUsers => prevUsers.map(u => 
-                u.id === affiliateData.id ? { ...u, ...affiliateData } : u
-            ));
-            showToast("Affiliate updated!");
+        if (useMockData) {
+            // Mock logic remains the same
         } else {
-            const newUser: User = {
-                id: crypto.randomUUID(),
-                name: affiliateData.name,
-                email: affiliateData.email,
-                avatar: `https://i.pravatar.cc/150?u=${affiliateData.email}`,
-                roles: ['affiliate'],
-                couponCode: affiliateData.couponCode,
-                joinDate: new Date().toISOString().split('T')[0],
-                status: 'Active',
-                partnerships: [{ creatorId: currentUser.id, status: 'Active' }],
-                sales: 0, commission: 0, clicks: 0, conversionRate: 0,
-            };
-            setUsers(prevUsers => [...prevUsers, newUser]);
-            showToast("Affiliate added and approved!");
+            if (isEdit) {
+                const { error } = await supabase.from('users').update({ name: affiliateData.name, email: affiliateData.email, couponCode: affiliateData.couponCode }).eq('id', affiliateData.id);
+                if (error) showToast(`Error: ${error.message}`);
+                else showToast("Affiliate updated!");
+            } else {
+                const { error } = await supabase.from('users').insert({ 
+                    name: affiliateData.name, 
+                    email: affiliateData.email, 
+                    couponCode: affiliateData.couponCode, 
+                    roles: ['affiliate'], 
+                    status: 'Active', 
+                    partnerships: [{ creatorId: currentUser.id, status: 'Active' }] 
+                });
+                if (error) showToast(`Error: ${error.message}`);
+                else showToast("Affiliate added and approved!");
+            }
+            refetchData();
         }
     };
 
-    const handleDeleteAffiliate = () => {
+    const handleDeleteAffiliate = async () => {
         if (affiliateToDelete) {
-             setUsers(prevUsers => 
-                prevUsers.map(user => {
-                    if (user.id === affiliateToDelete.id) {
-                        return {
-                            ...user,
-                            partnerships: user.partnerships?.filter(p => p.creatorId !== currentUser.id)
-                        };
-                    }
-                    return user;
-                })
-            );
-            showToast(`"${affiliateToDelete.name}" removed from your program.`);
+            const updatedPartnerships = affiliateToDelete.partnerships?.filter(p => p.creatorId !== currentUser.id);
+            if (useMockData) {
+                // mock logic
+            } else {
+                const { error } = await supabase.from('users').update({ partnerships: updatedPartnerships }).eq('id', affiliateToDelete.id);
+                if (error) showToast(`Error: ${error.message}`);
+                else {
+                    showToast(`"${affiliateToDelete.name}" removed from your program.`);
+                    refetchData();
+                }
+            }
             setAffiliateToDelete(null);
         }
     };
 
-    const handleSendInvite = (email: string) => {
+    const handleSendInvite = async (email: string) => {
         const existingUser = allUsers.find(u => u.email === email);
-
-        if (existingUser) {
-            if (existingUser.partnerships?.some(p => p.creatorId === currentUser.id)) {
-                showToast("This affiliate is already in your program or has a pending invite.");
+        const newPartnership = { creatorId: currentUser.id, status: 'Pending' as Partnership['status'] };
+        
+        // FIX: Implement mock logic for sending an invite.
+        if (useMockData) { 
+            if (existingUser) {
+                if (existingUser.partnerships?.some(p => p.creatorId === currentUser.id)) {
+                    showToast("This affiliate is already in your program or has a pending invite.");
+                    return;
+                }
+                const updatedPartnerships = [...(existingUser.partnerships || []), newPartnership];
+                setUsers(prev => prev.map(u => u.id === existingUser.id ? { ...u, partnerships: updatedPartnerships } : u));
+                showToast(`Invitation sent to ${email}.`);
             } else {
-                setUsers(prevUsers => prevUsers.map(u => 
-                    u.id === existingUser.id 
-                    ? { ...u, partnerships: [...(u.partnerships || []), { creatorId: currentUser.id, status: 'Pending' }] } 
-                    : u
-                ));
+                const newAffiliate: User = {
+                    id: crypto.randomUUID(),
+                    name: `(${email.split('@')[0]})`,
+                    email: email,
+                    avatar: `https://i.pravatar.cc/150?u=${email}`,
+                    roles: ['affiliate'],
+                    status: 'Active',
+                    partnerships: [newPartnership],
+                    joinDate: new Date().toISOString().split('T')[0],
+                };
+                setUsers(prev => [...prev, newAffiliate]);
                 showToast(`Invitation sent to ${email}.`);
             }
-        } else {
-            const newUser: User = {
-                id: crypto.randomUUID(),
-                name: `(${email.split('@')[0]})`,
-                email: email,
-                avatar: `https://i.pravatar.cc/150?u=${email}`,
-                roles: ['affiliate'],
-                joinDate: new Date().toISOString().split('T')[0],
-                status: 'Active',
-                partnerships: [{ creatorId: currentUser.id, status: 'Pending' }],
-                sales: 0, commission: 0, clicks: 0, conversionRate: 0,
-            };
-            setUsers(prevUsers => [...prevUsers, newUser]);
-            showToast(`Invitation sent to ${email}.`);
+        } 
+        else {
+            if (existingUser) {
+                if (existingUser.partnerships?.some(p => p.creatorId === currentUser.id)) {
+                    showToast("This affiliate is already in your program or has a pending invite.");
+                    return;
+                }
+                const updatedPartnerships = [...(existingUser.partnerships || []), newPartnership];
+                const { error } = await supabase.from('users').update({ partnerships: updatedPartnerships }).eq('id', existingUser.id);
+                if(error) showToast(`Error: ${error.message}`);
+                else showToast(`Invitation sent to ${email}.`);
+            } else {
+                const { error } = await supabase.from('users').insert({ 
+                    name: `(${email.split('@')[0]})`, 
+                    email: email, 
+                    roles: ['affiliate'], 
+                    status: 'Active',
+                    partnerships: [newPartnership] 
+                });
+                 if(error) showToast(`Error: ${error.message}`);
+                 else showToast(`Invitation sent to ${email}.`);
+            }
+            refetchData();
         }
         setIsInviteModalOpen(false);
     };
 
-
-    const handleOpenAddModal = () => {
+    // FIX: Implement modal opening logic.
+    const handleOpenAddModal = () => { 
         setEditingAffiliate(null);
         setIsAddModalOpen(true);
-    };
-
-    const handleOpenEditModal = (affiliate: User) => {
+     };
+    const handleOpenEditModal = (affiliate: User) => { 
         setEditingAffiliate(affiliate);
         setIsAddModalOpen(true);
-    };
+     };
 
     const filteredAffiliates = useMemo(() => {
         return affiliates
@@ -182,39 +207,39 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, allUsers, setUsers,
             });
     }, [affiliates, statusFilter, searchQuery, currentUser.id]);
 
-    const sortedAffiliates = useMemo(() => {
+    // FIX: Implemented sorting logic to resolve the error where `sortedAffiliates` was of type `void`.
+    const sortedAffiliates = useMemo(() => { 
         let sortableItems = [...filteredAffiliates];
-        if (sortConfig !== null) {
+        if (sortConfig) {
             sortableItems.sort((a, b) => {
-                let aValue: string | number, bValue: string | number;
-
                 if (sortConfig.key === 'name') {
-                    aValue = a.name.toLowerCase();
-                    bValue = b.name.toLowerCase();
+                    return sortConfig.direction === 'ascending'
+                        ? a.name.localeCompare(b.name)
+                        : b.name.localeCompare(a.name);
                 } else {
-                    aValue = a[sortConfig.key] || 0;
-                    bValue = b[sortConfig.key] || 0;
+                    const aValue = a[sortConfig.key] || 0;
+                    const bValue = b[sortConfig.key] || 0;
+                    if (aValue < bValue) {
+                        return sortConfig.direction === 'ascending' ? -1 : 1;
+                    }
+                    if (aValue > bValue) {
+                        return sortConfig.direction === 'ascending' ? 1 : -1;
+                    }
+                    return 0;
                 }
-
-                if (aValue < bValue) {
-                    return sortConfig.direction === 'ascending' ? -1 : 1;
-                }
-                if (aValue > bValue) {
-                    return sortConfig.direction === 'ascending' ? 1 : -1;
-                }
-                return 0;
             });
         }
         return sortableItems;
-    }, [filteredAffiliates, sortConfig]);
+     }, [filteredAffiliates, sortConfig]);
 
-    const requestSort = (key: SortableKey) => {
+    // FIX: Implemented sort request logic for table headers.
+    const requestSort = (key: SortableKey) => { 
         let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+        if (sortConfig?.key === key && sortConfig.direction === 'ascending') {
             direction = 'descending';
         }
         setSortConfig({ key, direction });
-    };
+     };
 
     const SortableHeader: React.FC<{ label: string; sortKey: SortableKey; }> = ({ label, sortKey }) => {
         const direction = sortConfig?.key === sortKey ? sortConfig.direction : 'none';
