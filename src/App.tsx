@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
 // Data
 import {
@@ -49,7 +50,6 @@ import SuperAdminDashboard from '../components/SuperAdminDashboard';
 import ClientManagement from '../components/ClientManagement';
 import SuperAdminAnalytics from '../components/SuperAdminAnalytics';
 import PlatformSettings from '../components/PlatformSettings';
-// FIX: Added missing import for PartnerflowAffiliates.
 import PartnerflowAffiliates from '../components/PartnerflowAffiliates';
 import AiAssistant from '../components/AiAssistant';
 import Marketplace from '../components/Marketplace';
@@ -58,6 +58,7 @@ import PartnerflowAffiliateSignupPage from '../components/PartnerflowAffiliateSi
 import CreatorAffiliateSignupPage from '../components/CreatorAffiliateSignupPage';
 import AffiliateSignupPage from '../components/AffiliateSignupPage';
 import Financials from '../components/Financials';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 // Types
 export type Page = 'Dashboard' | 'Affiliates' | 'Products' | 'Resources' | 'Payouts' | 'Reports' | 'Communicate' | 'Billing' | 'Settings';
@@ -76,6 +77,7 @@ const App: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [selectedCreatorForAffiliateSignup, setSelectedCreatorForAffiliateSignup] = useState<User | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Data state
     const [users, setUsers] = useState<User[]>(mockUsers);
@@ -88,7 +90,7 @@ const App: React.FC = () => {
     const [platformSettings, setPlatformSettings] = useState<PlatformSettingsType>(mockPlatformSettings);
     const [payments, setPayments] = useState<Payment[]>(mockPayments);
     
-    const useMockData = !supabase.auth; // simplified check
+    const useMockData = !process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY;
     
     useEffect(() => {
         const storedTheme = localStorage.getItem('theme') as Theme | null;
@@ -102,24 +104,87 @@ const App: React.FC = () => {
         localStorage.setItem('theme', theme);
     }, [theme]);
 
+    // --- NEW: SUPABASE AUTHENTICATION ---
+    useEffect(() => {
+        if (useMockData) {
+            setIsLoading(false);
+            return;
+        }
+
+        setIsLoading(true);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
+            if (event === 'SIGNED_IN' && session) {
+                // For this demo, we find the user in our mock data which now acts as our 'profiles' table.
+                const userProfile = users.find(u => u.id === session.user.id);
+                
+                if (userProfile) {
+                    setCurrentUser(userProfile);
+                    setAppView('app');
+                    // Role-based redirects after login
+                    if (userProfile.roles.includes('super_admin')) {
+                        setActivePage('AdminDashboard');
+                    } else if (userProfile.roles.includes('affiliate') && !userProfile.roles.includes('creator')) {
+                        setActiveView('affiliate');
+                    } else {
+                        setActivePage('Dashboard');
+                        setActiveView('creator');
+                    }
+                }
+            } else if (event === 'SIGNED_OUT') {
+                setCurrentUser(null);
+                setAppView('landing');
+                setActivePage('Dashboard');
+                setActiveView('creator');
+            }
+            setIsLoading(false);
+        });
+
+        // Check for initial session on app load
+        const checkInitialSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const userProfile = users.find(u => u.id === session.user.id);
+                if (userProfile) {
+                    setCurrentUser(userProfile);
+                    setAppView('app');
+                }
+            }
+            setIsLoading(false);
+        };
+        checkInitialSession();
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [users, useMockData]);
+
+
     const showToast = (message: string) => {
         setToastMessage(message);
         setTimeout(() => setToastMessage(null), 3000);
     };
 
     const handleLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-        const user = users.find(u => u.email === email);
-        if (user && password === 'password') { // Demo password
-            setCurrentUser(user);
-            setAppView('app');
-            if (user.roles.includes('super_admin')) {
-                setActivePage('AdminDashboard');
-            } else if (user.roles.includes('affiliate') && !user.roles.includes('creator')) {
-                setActiveView('affiliate');
+        // Demo mode login
+        if (useMockData) {
+            const user = users.find(u => u.email === email);
+            if (user && password === 'password') {
+                setCurrentUser(user);
+                setAppView('app');
+                if (user.roles.includes('super_admin')) setActivePage('AdminDashboard');
+                else if (user.roles.includes('affiliate') && !user.roles.includes('creator')) setActiveView('affiliate');
+                return { success: true };
             }
-            return { success: true };
+            return { success: false, error: 'Invalid credentials for demo.' };
         }
-        return { success: false, error: 'Invalid credentials for demo.' };
+        
+        // Real Supabase login
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            return { success: false, error: error.message };
+        }
+        // onAuthStateChange will handle setting the user and view
+        return { success: true };
     };
 
     const handleAffiliateLogin = (email: string, password: string) => {
@@ -133,21 +198,83 @@ const App: React.FC = () => {
         }
     };
     
-    const handleLogout = () => {
-        setCurrentUser(null);
-        setAppView('landing');
-        setActivePage('Dashboard');
-        setActiveView('creator');
+    const handleLogout = async () => {
+        // Demo mode logout
+        if (useMockData) {
+            setCurrentUser(null);
+            setAppView('landing');
+            setActivePage('Dashboard');
+            setActiveView('creator');
+            return;
+        }
+
+        // Real Supabase logout
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            showToast(`Error logging out: ${error.message}`);
+        }
+        // onAuthStateChange will handle state cleanup
     };
     
-    const handleSignup = async (): Promise<{ success: boolean; error?: string; }> => {
-        showToast("Registration successful! Please log in.");
-        setAppView('creator_login');
-        return { success: true };
+    const handleSignup = async (name: string, companyName: string, email: string, password: string): Promise<{ success: boolean; error?: string; }> => {
+        // Demo mode signup
+        if (useMockData) {
+            const newUser: User = {
+                id: `user_${Date.now()}`,
+                name,
+                email,
+                company_name: companyName,
+                avatar: `https://i.pravatar.cc/150?u=${email}`,
+                roles: ['creator'],
+                currentPlan: 'Starter Plan',
+                joinDate: new Date().toISOString().split('T')[0],
+                status: 'Active',
+                trialEndsAt: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(),
+                onboardingStepCompleted: 0,
+            };
+            setUsers(prev => [...prev, newUser]);
+            showToast("Registration successful! Please log in.");
+            setAppView('creator_login');
+            return { success: true };
+        }
+
+        // Real Supabase signup
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { data: { full_name: name, company_name: companyName } }
+        });
+
+        if (error) {
+            return { success: false, error: error.message };
+        }
+
+        if (data.user) {
+            // In a real app, a DB trigger would create the profile.
+            // Here, we simulate it by adding to our local state to make the demo work.
+            const newUserProfile: User = {
+                id: data.user.id,
+                name,
+                email,
+                avatar: `https://i.pravatar.cc/150?u=${email}`,
+                roles: ['creator'],
+                company_name: companyName,
+                currentPlan: 'Starter Plan',
+                joinDate: new Date().toISOString().split('T')[0],
+                status: 'Active',
+                trialEndsAt: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(),
+                onboardingStepCompleted: 0,
+            };
+            setUsers(prevUsers => [...prevUsers, newUserProfile]);
+            showToast("Registration successful! Please check your email to confirm your account.");
+            setAppView('creator_login');
+            return { success: true };
+        }
+        
+        return { success: false, error: 'An unknown error occurred.' };
     };
 
     const handleAffiliateSignup = (name: string, email: string) => {
-        // Create a new general affiliate
         const newAffiliate: User = {
             id: `new-affiliate-${Date.now()}`,
             name,
@@ -184,14 +311,13 @@ const App: React.FC = () => {
                         ...user,
                         partnerships: [...(user.partnerships || []), newPartnership]
                     };
-                    setCurrentUser(updatedUser); // Update current user state as well
+                    setCurrentUser(updatedUser);
                     return updatedUser;
                 }
                 return user;
             }));
             showToast(`Application submitted to ${creator.company_name}!`);
         } else {
-            // Not logged in affiliate, go to login/signup flow
             setSelectedCreatorForAffiliateSignup(creator);
             setAppView('affiliate_login');
         }
@@ -213,26 +339,17 @@ const App: React.FC = () => {
             referralCode: name.toUpperCase().substring(0,4) + '-K',
         };
         setUsers(prev => [...prev, newAffiliate]);
-        // The CreatorAffiliateSignupPage will show a success message.
     };
 
-    // Placeholder functions for db interactions
-    const refetchData = useCallback(() => {
-        // In a real app, this would re-fetch from Supabase
-        console.log("Refetching data...");
-    }, []);
+    const refetchData = useCallback(() => { console.log("Refetching data..."); }, []);
+    const onRecordSale = (affiliateId: string, productId: string, saleAmount: number) => { showToast(`Simulated sale recorded for affiliate ID ${affiliateId}`); };
+    const onRecordSaleByCoupon = (couponCode: string, productId: string, saleAmount: number) => { showToast(`Simulated sale recorded with coupon ${couponCode}`); };
 
-    const onRecordSale = (affiliateId: string, productId: string, saleAmount: number) => {
-        showToast(`Simulated sale recorded for affiliate ID ${affiliateId}`);
-    };
-
-    const onRecordSaleByCoupon = (couponCode: string, productId: string, saleAmount: number) => {
-        showToast(`Simulated sale recorded with coupon ${couponCode}`);
-    };
-
-    // Render logic based on appView
+    if (isLoading) {
+        return <LoadingSpinner fullPage />;
+    }
+    
     if (!currentUser || appView !== 'app') {
-        // Unauthenticated views
         switch (appView) {
             case 'landing':
                 return <LandingPage 
@@ -277,7 +394,6 @@ const App: React.FC = () => {
         }
     }
 
-    // Authenticated views
     const isSuperAdmin = currentUser.roles.includes('super_admin');
     const trialDaysRemaining = currentUser.trialEndsAt ? Math.ceil((new Date(currentUser.trialEndsAt).getTime() - new Date().getTime()) / (1000 * 3600 * 24)) : null;
     const isTrialExpired = trialDaysRemaining !== null && trialDaysRemaining < 0;
