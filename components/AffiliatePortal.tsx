@@ -32,6 +32,7 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, 
     const [activePage, setActivePage] = useState<AffiliatePage>('Dashboard');
     const [activeProgram, setActiveProgram] = useState<User | null>(null);
     const [showOnboarding, setShowOnboarding] = useState(affiliate.onboardingStepCompleted === undefined);
+    const [copiedResourceId, setCopiedResourceId] = useState<number | null>(null);
 
     const canSwitchToCreator = affiliate.roles.includes('creator');
 
@@ -51,17 +52,42 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, 
         return null;
     };
 
-    const ResourceCard: React.FC<{resource: Resource}> = ({ resource }) => (
-        <div className="flex items-start p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-x-3">
-            <div className="flex-shrink-0 mt-1">
-                <ResourceIcon type={resource.type} />
+    const ResourceCard: React.FC<{ resource: Resource }> = ({ resource }) => {
+        const handleCopy = (e: React.MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigator.clipboard.writeText(resource.content);
+            setCopiedResourceId(resource.id);
+            setTimeout(() => setCopiedResourceId(null), 2000);
+        };
+
+        const cardContent = (
+            <div className="flex items-start p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-x-3 h-full">
+                <div className="flex-shrink-0 mt-1">
+                    <ResourceIcon type={resource.type} />
+                </div>
+                <div className="flex-grow">
+                    <p className="font-medium text-gray-800 dark:text-white text-sm">{resource.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{resource.description}</p>
+                </div>
+                {resource.type === 'Email Swipe' && (
+                    <button onClick={handleCopy} className="self-end px-2 py-1 bg-teal-500 text-white text-xs font-semibold rounded-md hover:bg-teal-600 flex-shrink-0">
+                        {copiedResourceId === resource.id ? 'Copied!' : 'Copy'}
+                    </button>
+                )}
             </div>
-            <div>
-                <p className="font-medium text-gray-800 dark:text-white text-sm">{resource.name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{resource.description}</p>
-            </div>
-        </div>
-    );
+        );
+    
+        if (resource.type === 'Email Swipe') {
+            return <div>{cardContent}</div>;
+        }
+
+        return (
+            <a href={resource.content} target="_blank" rel="noopener noreferrer" className="block hover:shadow-md transition-shadow rounded-lg">
+                {cardContent}
+            </a>
+        );
+    };
 
     const ProgramDetailView: React.FC<{
         affiliate: User,

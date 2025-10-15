@@ -158,7 +158,7 @@ const AddCreativeModal: React.FC<AddResourceModalProps> = ({ onClose, onSave, re
                     <div className="mt-1">
                         <input type="file" id="file-upload" className="hidden" onChange={handleFileChange} accept="image/*,video/*,application/pdf"/>
                         <label htmlFor="file-upload" className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                            <span>Parcourir les fichiers</span>
+                            <span>Browse files</span>
                         </label>
                         {fileName && <span className="ml-3 text-sm text-gray-500 dark:text-gray-400">{fileName}</span>}
                     </div>
@@ -168,7 +168,7 @@ const AddCreativeModal: React.FC<AddResourceModalProps> = ({ onClose, onSave, re
                         <div className="w-full border-t border-gray-300 dark:border-gray-600" />
                       </div>
                       <div className="relative flex justify-center">
-                        <span className="bg-white dark:bg-gray-800 px-2 text-sm text-gray-500 dark:text-gray-400">OU</span>
+                        <span className="bg-white dark:bg-gray-800 px-2 text-sm text-gray-500 dark:text-gray-400">OR</span>
                       </div>
                     </div>
                 

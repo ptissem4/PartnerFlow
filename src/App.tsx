@@ -418,7 +418,17 @@ const App: React.FC = () => {
 
 
     const handleAffiliateSignup = (name: string, email: string) => {
-        const newAffiliate: User = { /* ... */ } as User;
+        const newAffiliate: User = {
+            id: crypto.randomUUID(),
+            name,
+            email,
+            avatar: `https://i.pravatar.cc/150?u=${email}`,
+            roles: ['affiliate'],
+            status: 'Active',
+            joinDate: new Date().toISOString().split('T')[0],
+            partnerships: [],
+            onboardingStepCompleted: 0,
+        };
         setUsers(prev => [...prev, newAffiliate]);
         setCurrentUser(newAffiliate);
         setActiveView('affiliate');
@@ -426,8 +436,70 @@ const App: React.FC = () => {
         showToast("Welcome to PartnerFlow!");
     };
 
-    const handleAffiliateApply = (creatorId: string) => { /* ... existing logic ... */ };
-    const handleCreatorAffiliateSignup = (name: string, email: string) => { /* ... existing logic ... */ };
+    const handleAffiliateApply = (creatorId: string) => {
+        if (!currentUser) {
+            showToast("Please log in or sign up to apply for programs.");
+            setAppView('affiliate_login');
+            return;
+        }
+
+        const creator = users.find(u => u.id === creatorId);
+        if (!creator) return;
+
+        if (currentUser.partnerships?.some(p => p.creatorId === creatorId)) {
+            showToast(`You have already applied to or joined ${creator.company_name}'s program.`);
+            return;
+        }
+
+        const newPartnership: Partnership = { creatorId: creatorId, status: 'Pending' };
+        const updatedUser = {
+            ...currentUser,
+            partnerships: [...(currentUser.partnerships || []), newPartnership]
+        };
+
+        setCurrentUser(updatedUser);
+        setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
+        showToast(`Application to ${creator.company_name}'s program submitted!`);
+    };
+    
+    const handleCreatorAffiliateSignup = (name: string, email: string) => {
+        if (!selectedCreatorForAffiliateSignup) return;
+
+        const creator = users.find(u => u.id === selectedCreatorForAffiliateSignup.id);
+        if (!creator) return;
+
+        const newPartnership: Partnership = { creatorId: creator.id, status: 'Pending' };
+        
+        const existingUser = users.find(u => u.email === email);
+        if (existingUser) {
+            const updatedUsers = users.map(u => {
+                if (u.id === existingUser.id) {
+                    return {
+                        ...u,
+                        partnerships: [...(u.partnerships || []), newPartnership]
+                    };
+                }
+                return u;
+            });
+            setUsers(updatedUsers);
+        } else {
+            const newAffiliate: User = {
+                id: crypto.randomUUID(),
+                name,
+                email,
+                avatar: `https://i.pravatar.cc/150?u=${email}`,
+                roles: ['affiliate'],
+                status: 'Active',
+                joinDate: new Date().toISOString().split('T')[0],
+                partnerships: [newPartnership],
+                onboardingStepCompleted: 0,
+            };
+            setUsers(prev => [...prev, newAffiliate]);
+        }
+        
+        showToast(`Application submitted to ${creator.company_name}! You'll be notified upon approval.`);
+    };
+
     const onRecordSale = (affiliateId: string, productId: string, saleAmount: number) => { showToast(`Simulated sale recorded for affiliate ID ${affiliateId}`); };
     const onRecordSaleByCoupon = (couponCode: string, productId: string, saleAmount: number) => { showToast(`Simulated sale recorded with coupon ${couponCode}`); };
 
@@ -512,6 +584,62 @@ const App: React.FC = () => {
                     onApply={handleAffiliateApply}
                 />
     }
+
+    const handleOnboardingStepChange = async (step: number) => {
+        if (useMockData) {
+            setCurrentUser(u => u ? {...u, onboardingStepCompleted: step} : null);
+            return;
+        }
+        const { error } = await supabase.from('users').update({ onboardingStepCompleted: step }).eq('id', currentUser.id);
+        if (error) showToast(`Error saving progress: ${error.message}`);
+        else await fetchData(currentUser);
+    };
+
+    const handleOnboardingAddProduct = async (name: string, price: number) => {
+        const productData = {
+            user_id: currentUser.id,
+            name,
+            price,
+            sales_page_url: 'https://example.com/your-product',
+            commission_tiers: [{ threshold: 0, rate: 20 }],
+            bonuses: [],
+            isPubliclyListed: false,
+            description: `This is a new product for ${name}.`,
+            creation_date: new Date().toISOString().split('T')[0],
+        };
+
+        if (useMockData) {
+            setProducts(p => [...p, { ...productData, id: Date.now(), sales_count: 0, clicks: 0 }]);
+        } else {
+            const { error } = await supabase.from('products').insert(productData);
+            if (error) showToast(`Error adding product: ${error.message}`);
+            else await fetchData(currentUser);
+        }
+        showToast(`${name} has been added!`);
+    };
+
+    const handleOnboardingInviteAffiliate = async (email: string) => {
+        if (useMockData) {
+            // Mock logic is handled in Affiliates component, this is a simplified version
+            showToast(`Invite sent to ${email} in demo mode.`);
+            return;
+        }
+
+        const { data: existingUser } = await supabase.from('users').select('id, partnerships').eq('email', email).single();
+        const newPartnership = { creatorId: currentUser.id, status: 'Pending' as Partnership['status'] };
+
+        if (existingUser) {
+            const updatedPartnerships = [...(existingUser.partnerships || []), newPartnership];
+            const { error } = await supabase.from('users').update({ partnerships: updatedPartnerships }).eq('id', existingUser.id);
+            if(error) showToast(`Error: ${error.message}`);
+        } else {
+            const { error } = await supabase.from('users').insert({ name: `(${email.split('@')[0]})`, email, roles: ['affiliate'], status: 'Active', partnerships: [newPartnership] });
+            if(error) showToast(`Error: ${error.message}`);
+        }
+        showToast(`Invitation sent to ${email}.`);
+        await fetchData(currentUser);
+    };
+
 
     const renderPage = () => {
         if (isLoading) return <div className="flex justify-center items-center h-full"><LoadingSpinner /></div>;
@@ -606,15 +734,15 @@ const App: React.FC = () => {
             {onboardingIncomplete &&
                 <OnboardingModal 
                     currentUser={currentUser}
-                    onStepChange={() => {}}
-                    onAddProduct={() => {}}
-                    onInviteAffiliate={() => {}}
-                    onComplete={() => {
-                        setCurrentUser(u => u ? {...u, onboardingStepCompleted: 5} : null);
+                    onStepChange={handleOnboardingStepChange}
+                    onAddProduct={handleOnboardingAddProduct}
+                    onInviteAffiliate={handleOnboardingInviteAffiliate}
+                    onComplete={async () => {
+                        await handleOnboardingStepChange(5);
                         showToast("Onboarding complete!");
                     }}
-                    onSkip={() => {
-                        setCurrentUser(u => u ? {...u, onboardingStepCompleted: 5} : null);
+                    onSkip={async () => {
+                        await handleOnboardingStepChange(5);
                     }}
                 />
             }
