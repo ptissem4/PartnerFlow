@@ -36,6 +36,11 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, 
 
     const canSwitchToCreator = affiliate.roles.includes('creator');
 
+    const handleLogoClick = () => {
+        setActivePage('Dashboard');
+        setActiveProgram(null);
+    };
+
     // FIX: A component must return JSX, not implicitly void.
     const ResourceIcon: React.FC<{type: ResourceType}> = ({ type }) => {
         const className = "h-5 w-5 text-gray-500 dark:text-gray-400";
@@ -438,12 +443,14 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, 
             {showOnboarding && <AffiliateOnboardingModal affiliate={affiliate} onComplete={() => setShowOnboarding(false)} onSkip={() => setShowOnboarding(false)} />}
              <header className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex justify-between items-center">
                 <div className="flex items-center">
-                     <div className="p-2 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-lg shadow-md">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                        </svg>
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-white ml-3">Affiliate Portal</h2>
+                     <button onClick={handleLogoClick} className="flex items-center focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-cyan-500 rounded-lg" aria-label="Go to affiliate dashboard">
+                        <div className="p-2 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-lg shadow-md">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                            </svg>
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-800 dark:text-white ml-3">Affiliate Portal</h2>
+                    </button>
                 </div>
                 <div className="flex items-center space-x-4">
                     {canSwitchToCreator && (

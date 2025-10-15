@@ -142,7 +142,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogi
             )}
             <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
                 <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-                    <a href="#" className="flex items-center">
+                    <a href="/" className="flex items-center">
                         <div className="p-2 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-lg shadow-md">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

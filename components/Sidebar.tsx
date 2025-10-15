@@ -50,14 +50,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, isOpen, se
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      <div className="flex items-center mb-10">
+      <button
+        onClick={() => setActivePage(isSuperAdmin ? 'AdminDashboard' : 'Dashboard')}
+        className="flex items-center mb-10 text-left w-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 rounded-lg p-1 -ml-1"
+        aria-label="Go to dashboard"
+      >
         <div className="p-2 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-lg shadow-md">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
           </svg>
         </div>
         <h1 className="text-2xl font-bold ml-3 text-gray-800 dark:text-white">PartnerFlow</h1>
-      </div>
+      </button>
       <nav className="space-y-2">
         {isSuperAdmin ? (
             <>
