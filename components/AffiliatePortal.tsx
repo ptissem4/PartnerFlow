@@ -18,6 +18,7 @@ interface AffiliatePortalProps {
     showToast: (message: string) => void;
     onApply: (creatorId: string) => void;
     onUpdateUser: (userId: string, data: Partial<User>) => void;
+    onBecomeCreator: () => void;
 }
 
 type AffiliatePage = 'Dashboard' | 'Programs' | 'Resources' | 'Payouts' | 'Marketplace' | 'Settings';
@@ -29,7 +30,7 @@ const StatCard: React.FC<{ title: string; value: string; }> = ({ title, value })
     </div>
 );
 
-const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, allUsers, allProducts, payouts, allResources, onLogout, setActiveView, showToast, onApply, onUpdateUser }) => {
+const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, allUsers, allProducts, payouts, allResources, onLogout, setActiveView, showToast, onApply, onUpdateUser, onBecomeCreator }) => {
     const [activePage, setActivePage] = useState<AffiliatePage>('Dashboard');
     const [activeProgram, setActiveProgram] = useState<User | null>(null);
     const [showOnboarding, setShowOnboarding] = useState(affiliate.onboardingStepCompleted === undefined);
@@ -37,6 +38,7 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const canSwitchToCreator = affiliate.roles.includes('creator');
+    const canBecomeCreator = !affiliate.roles.includes('creator');
 
     const handleLogoClick = () => {
         setActivePage('Dashboard');
@@ -398,11 +400,16 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, 
                  <header className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-8 py-4">
                      <div className="flex items-center">
                         <button className="text-gray-500 dark:text-gray-400 focus:outline-none md:hidden" onClick={() => setIsSidebarOpen(true)} aria-label="Open sidebar">
-                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                         </button>
                         <h2 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-white ml-4 md:ml-0">{activeProgram ? activeProgram.company_name : activePage}</h2>
                     </div>
                     <div className="flex items-center space-x-4">
+                        {canBecomeCreator && (
+                            <button onClick={onBecomeCreator} className="px-4 py-2 text-sm font-semibold text-white bg-teal-500 rounded-lg shadow-md hover:bg-teal-600">
+                                Become a Creator
+                            </button>
+                        )}
                         {canSwitchToCreator && (
                             <button onClick={() => setActiveView('creator')} className="px-4 py-2 text-sm font-semibold text-white bg-teal-500 rounded-lg shadow-md hover:bg-teal-600">
                                 Switch to Creator View

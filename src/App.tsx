@@ -205,7 +205,29 @@ const App: React.FC = () => {
         setIsLoading(true);
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
             if (session) {
-                const { data: userProfile, error } = await supabase.from('users').select('*').eq('id', session.user.id).single();
+                let { data: userProfile, error } = await supabase.from('users').select('*').eq('id', session.user.id).single();
+
+                // Handle new user from Google sign-in
+                if (!userProfile && session.user.app_metadata.provider === 'google' && event === 'SIGNED_IN') {
+                    const newUser: Partial<User> = {
+                        id: session.user.id,
+                        email: session.user.email,
+                        name: session.user.user_metadata.full_name,
+                        avatar: session.user.user_metadata.avatar_url,
+                        roles: ['affiliate'], // Default role for Google signups
+                        status: 'Active',
+                        joinDate: new Date().toISOString(),
+                        onboardingStepCompleted: 0,
+                    };
+                    const { data: newProfileData, error: insertError } = await supabase.from('users').insert(newUser).select().single();
+                    if (insertError) {
+                        console.error("Error creating profile for Google user:", insertError);
+                        handleLogout();
+                        return;
+                    }
+                    userProfile = newProfileData;
+                    showToast(`Welcome, ${userProfile.name}! Your affiliate account has been created.`);
+                }
                 
                 if (userProfile) {
                     setCurrentUser(userProfile);
@@ -279,6 +301,22 @@ const App: React.FC = () => {
         // onAuthStateChange will handle the rest
         return { success: true };
     };
+
+    const handleGoogleSignIn = async () => {
+        if (useMockData) {
+            showToast("Google Sign-In is not available in demo mode.");
+            return;
+        }
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: window.location.origin,
+            },
+        });
+        if (error) {
+            showToast(`Google Sign-In Error: ${error.message}`);
+        }
+    };
     
     const handleLogout = async () => {
         if (useMockData) {
@@ -349,16 +387,33 @@ const App: React.FC = () => {
         const newCycle = planToCheckout.cycle;
         const amount = newCycle === 'annual' ? newPlan.annualPrice : newPlan.price;
 
+        // NEW LOGIC: Upgrade role if user is an affiliate
+        const isUpgrading = !currentUser.roles.includes('creator');
+        let updatedRoles = currentUser.roles;
+        if (isUpgrading) {
+            updatedRoles = [...currentUser.roles, 'creator'];
+        }
+
         if (useMockData) {
-            setCurrentUser(u => u ? { ...u, currentPlan: newPlan.name, billingCycle: newCycle, trialEndsAt: undefined } : null);
+            setCurrentUser(u => u ? { ...u, currentPlan: newPlan.name, billingCycle: newCycle, trialEndsAt: undefined, roles: updatedRoles } : null);
             setPayments(p => [...p, { id: Date.now(), user_id: currentUser.id, amount, date: new Date().toISOString().split('T')[0], plan: newPlan.name }]);
             showToast(`Successfully subscribed to the ${newPlan.name}!`);
+             if (isUpgrading) {
+                showToast("You've been upgraded to a Creator! Redirecting to your new dashboard...");
+                setActiveView('creator');
+                setActivePage('Dashboard');
+            }
             return;
         }
 
         const { error: userUpdateError } = await supabase
             .from('users')
-            .update({ currentPlan: newPlan.name, billingCycle: newCycle, trialEndsAt: null })
+            .update({ 
+                currentPlan: newPlan.name, 
+                billingCycle: newCycle, 
+                trialEndsAt: null,
+                roles: updatedRoles // Update roles in DB
+            })
             .eq('id', currentUser.id);
 
         if (userUpdateError) {
@@ -377,6 +432,12 @@ const App: React.FC = () => {
             showToast(`Error recording payment: ${paymentInsertError.message}`);
         } else {
             showToast(`Successfully subscribed to the ${newPlan.name}!`);
+        }
+        
+        if (isUpgrading) {
+            showToast("You've been upgraded to a Creator!");
+            setActiveView('creator');
+            setActivePage('Dashboard');
         }
 
         await fetchData(currentUser); // Refetch all data to update UI
@@ -668,17 +729,18 @@ const App: React.FC = () => {
                             currentUser={currentUser}
                         />;
             case 'creator_login':
-                return <LoginPage onLogin={handleLogin} onBack={() => setAppView('landing')} onNavigateToRegister={() => setAppView('register')} />;
+                return <LoginPage onLogin={handleLogin} onBack={() => setAppView('landing')} onNavigateToRegister={() => setAppView('register')} onGoogleSignIn={handleGoogleSignIn} />;
             case 'affiliate_login':
                 return <AffiliateLoginPage 
                             onLogin={handleLogin} 
                             onNavigateToMarketplace={() => setAppView('marketplace')}
                             onNavigateToSignup={() => setAppView('affiliate_signup')}
+                            onGoogleSignIn={handleGoogleSignIn}
                         />;
             case 'register':
-                return <RegistrationPage onSignup={handleSignup} onBack={() => setAppView('landing')} />;
+                return <RegistrationPage onSignup={handleSignup} onBack={() => setAppView('landing')} onGoogleSignIn={handleGoogleSignIn} />;
             case 'affiliate_signup':
-                return <AffiliateSignupPage onSignup={handleAffiliateSignup} onBack={() => setAppView('affiliate_login')} />;
+                return <AffiliateSignupPage onSignup={handleAffiliateSignup} onBack={() => setAppView('affiliate_login')} onGoogleSignIn={handleGoogleSignIn} />;
             case 'creator_affiliate_signup': 
                 return <CreatorAffiliateSignupPage onSignup={handleCreatorAffiliateSignup} onBack={() => setAppView('landing')} entrepreneur={selectedCreatorForAffiliateSignup} />;
             case 'partnerflow_affiliate_signup':
@@ -731,6 +793,10 @@ const App: React.FC = () => {
                     showToast={showToast}
                     onApply={handleAffiliateApply}
                     onUpdateUser={handleUpdateUser}
+                    onBecomeCreator={() => {
+                        setActiveView('creator');
+                        setActivePage('Billing');
+                    }}
                 />
     }
 
