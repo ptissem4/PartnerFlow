@@ -55,7 +55,8 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, allUsers, setUsers,
     const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: SortableKey; direction: 'ascending' | 'descending' } | null>({ key: 'commission', direction: 'descending' });
 
-    const useMockData = !process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY;
+    // FIX: Add optional chaining `?.` to prevent crash if `import.meta.env` is not available.
+    const useMockData = !((import.meta as any).env?.VITE_SUPABASE_URL) || !((import.meta as any).env?.VITE_SUPABASE_ANON_KEY);
     const limitReached = affiliates.length >= currentPlan.limits.affiliates;
     const invitationLink = `${window.location.origin}?ref=${currentUser.id}`;
 

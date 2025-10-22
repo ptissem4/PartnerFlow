@@ -1,16 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Safely access environment variables to prevent crashes in browsers.
-const safeProcessEnv = (typeof process !== 'undefined' && process.env) ? process.env : {};
-const supabaseUrl = safeProcessEnv.VITE_SUPABASE_URL;
-const supabaseAnonKey = safeProcessEnv.VITE_SUPABASE_ANON_KEY;
+// In a Vite environment (indicated by VITE_ prefix), environment variables are exposed on import.meta.env
+// FIX: Add optional chaining `?.` to prevent crash if `import.meta.env` is not available.
+const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
+const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+
 
 if (!supabaseUrl) {
-  console.warn("Supabase URL is not defined. The application will run in demo mode.");
+  console.warn("L'URL Supabase n'est pas définie. L'application fonctionnera en mode démo.");
 }
 
 if (!supabaseAnonKey) {
-  console.warn("Supabase anonymous key is not defined. The application will run in demo mode.");
+  console.warn("La clé anonyme Supabase n'est pas définie. L'application fonctionnera en mode démo.");
 }
 
 // Provide dummy values when environment variables are missing to prevent the client from throwing an error.

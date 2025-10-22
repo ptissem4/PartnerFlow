@@ -98,7 +98,8 @@ const App: React.FC = () => {
     const [platformSettings, setPlatformSettings] = useState<PlatformSettingsType>(mockPlatformSettings);
     const [payments, setPayments] = useState<Payment[]>([]);
     
-    const useMockData = !process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY;
+    // FIX: Add optional chaining `?.` to prevent crash if `import.meta.env` is not available.
+    const useMockData = !((import.meta as any).env?.VITE_SUPABASE_URL) || !((import.meta as any).env?.VITE_SUPABASE_ANON_KEY);
     
     const fetchData = useCallback(async (sessionUser: any) => {
         if (useMockData) {
