@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 // FIX: Updated Plan import to resolve circular dependency.
 import { Product, CommissionTier, PerformanceBonus, User, Plan } from '../data/mockData';
@@ -227,83 +228,85 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ onClose, onSave, prod
             {/* Commission Tiers */}
             <div className="space-y-2 p-4 border border-gray-200 dark:border-gray-700 rounded-md">
                 <h3 className="font-semibold text-gray-800 dark:text-white">Commission Tiers</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Set different rates that apply after an affiliate reaches a sales threshold.</p>
-                 <div className="grid grid-cols-2 gap-x-2 text-xs text-gray-500 dark:text-gray-400 mb-1">
-                  <span>After X Sales</span>
-                  <span>Rate (%)</span>
-                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Set the base commission rate. Add more tiers to reward top affiliates based on sales.</p>
                 {commissionTiers.map((tier, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                        <input type="number" value={tier.threshold} onChange={e => handleTierChange(index, 'threshold', e.target.value)} disabled={index === 0} className="w-full block px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 disabled:bg-gray-100 dark:disabled:bg-gray-600" placeholder="Sales Threshold"/>
-                        <input type="number" value={tier.rate} onChange={e => handleTierChange(index, 'rate', e.target.value)} className="w-full block px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" placeholder="Rate (%)"/>
-                        {index > 0 && canUseAdvancedFeatures ? (
-                            <button type="button" onClick={() => removeTier(index)} className="text-red-500 hover:text-red-700 font-bold p-1 text-xl">&times;</button>
-                        ) : <div className="w-8"></div>}
+                    <div key={index} className="flex items-center gap-4">
+                        <div className="flex-1">
+                            <label htmlFor={`tier-rate-${index}`} className="sr-only">Rate</label>
+                            <div className="relative rounded-md shadow-sm">
+                                <input type="number" id={`tier-rate-${index}`} value={tier.rate} onChange={e => handleTierChange(index, 'rate', e.target.value)} className="block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" placeholder="20" disabled={index > 0 && !canUseAdvancedFeatures} />
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><span className="text-gray-500 sm:text-sm">%</span></div>
+                            </div>
+                        </div>
+                        <span className="text-gray-500">for</span>
+                        <div className="flex-1">
+                             <label htmlFor={`tier-threshold-${index}`} className="sr-only">Threshold</label>
+                             <div className="relative rounded-md shadow-sm">
+                                <input type="number" id={`tier-threshold-${index}`} value={tier.threshold} onChange={e => handleTierChange(index, 'threshold', e.target.value)} className="block w-full pl-3 pr-10 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" placeholder="10" disabled={index === 0 || !canUseAdvancedFeatures}/>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><span className="text-gray-500 sm:text-sm">sales</span></div>
+                             </div>
+                        </div>
+                        <button type="button" onClick={() => removeTier(index)} disabled={index === 0 || !canUseAdvancedFeatures} className="text-red-500 hover:text-red-700 disabled:opacity-50">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
                     </div>
                 ))}
-                {canUseAdvancedFeatures ? (
-                    <button type="button" onClick={addTier} className="text-sm font-medium text-cyan-600 dark:text-cyan-500 hover:underline pt-2">+ Add Tier</button>
-                ) : (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md">
-                        Tiered commissions are available on the Growth plan. <a href="#" className="text-cyan-500 hover:underline font-medium">Upgrade</a>
-                    </p>
-                )}
+                <button type="button" onClick={addTier} disabled={!canUseAdvancedFeatures} className="text-sm font-medium text-cyan-600 dark:text-cyan-500 hover:underline disabled:opacity-50 disabled:cursor-not-allowed">
+                   + Add Tier
+                </button>
+                {!canUseAdvancedFeatures && <p className="text-xs text-yellow-600">Tiered commissions require the Growth Plan or higher.</p>}
             </div>
-            
-             {/* Performance Bonuses */}
-            {canUseAdvancedFeatures ? (
-                <div className="space-y-2 p-4 border border-gray-200 dark:border-gray-700 rounded-md">
-                    <h3 className="font-semibold text-gray-800 dark:text-white">Performance Bonuses</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Reward affiliates with a fixed amount for hitting a specific goal.</p>
-                    <div className="grid grid-cols-3 gap-x-2 text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        <span>Goal</span>
-                        <span>Reward ($)</span>
-                        <span>Type</span>
-                    </div>
-                    {bonuses.map((bonus, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                            <input type="number" value={bonus.goal} onChange={e => handleBonusChange(index, 'goal', e.target.value)} className="w-full block px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" placeholder="e.g., 50"/>
-                            <input type="number" value={bonus.reward} onChange={e => handleBonusChange(index, 'reward', e.target.value)} className="w-full block px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500" placeholder="e.g., 100"/>
-                            <select value={bonus.type} onChange={e => handleBonusChange(index, 'type', e.target.value)} className="w-full block px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-cyan-500 focus:border-cyan-500">
-                                <option value="sales">Sales</option>
-                                <option value="clicks">Clicks</option>
-                            </select>
-                            <button type="button" onClick={() => removeBonus(index)} className="text-red-500 hover:text-red-700 font-bold p-1 text-xl">&times;</button>
+
+            {/* Bonuses */}
+             <div className="space-y-2 p-4 border border-gray-200 dark:border-gray-700 rounded-md">
+                <h3 className="font-semibold text-gray-800 dark:text-white">Performance Bonuses</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Reward affiliates with a one-time cash bonus for reaching a specific goal.</p>
+                {bonuses.map((bonus, index) => (
+                    <div key={index} className="flex items-center gap-4">
+                       <div className="flex-1">
+                           <label htmlFor={`bonus-reward-${index}`} className="sr-only">Reward</label>
+                           <div className="relative rounded-md shadow-sm">
+                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><span className="text-gray-500 sm:text-sm">$</span></div>
+                            <input type="number" id={`bonus-reward-${index}`} value={bonus.reward} onChange={e => handleBonusChange(index, 'reward', e.target.value)} className="block w-full pl-7 pr-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" placeholder="100" disabled={!canUseAdvancedFeatures} />
+                           </div>
                         </div>
-                    ))}
-                    <button type="button" onClick={addBonus} className="text-sm font-medium text-cyan-600 dark:text-cyan-500 hover:underline pt-2">+ Add Bonus</button>
-                </div>
-            ) : null}
-
-            {/* Marketplace Listing */}
-            <div className="space-y-4 p-4 border border-gray-200 dark:border-gray-700 rounded-md">
-                <Toggle 
-                    label="List on Marketplace"
-                    enabled={isPubliclyListed}
-                    onToggle={setIsPubliclyListed}
-                    disabled={!canUseAdvancedFeatures}
-                    disabledText="Available on the Growth plan and up."
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Enable this to allow any PartnerFlow affiliate to discover your product and apply to promote it.
-                </p>
-                 {!canUseAdvancedFeatures && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md">
-                        The Affiliate Marketplace is available on the Growth plan. <a href="#" className="text-cyan-500 hover:underline font-medium">Upgrade</a>
-                    </p>
-                )}
+                        <span>for reaching</span>
+                         <div className="flex-1">
+                            <label htmlFor={`bonus-goal-${index}`} className="sr-only">Goal</label>
+                            <input type="number" id={`bonus-goal-${index}`} value={bonus.goal} onChange={e => handleBonusChange(index, 'goal', e.target.value)} className="block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" placeholder="50" disabled={!canUseAdvancedFeatures} />
+                        </div>
+                        <select value={bonus.type} onChange={e => handleBonusChange(index, 'type', e.target.value)} className="px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" disabled={!canUseAdvancedFeatures}>
+                            <option value="sales">sales</option>
+                            <option value="clicks">clicks</option>
+                        </select>
+                         <button type="button" onClick={() => removeBonus(index)} disabled={!canUseAdvancedFeatures} className="text-red-500 hover:text-red-700 disabled:opacity-50">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    </div>
+                ))}
+                 <button type="button" onClick={addBonus} disabled={!canUseAdvancedFeatures} className="text-sm font-medium text-cyan-600 dark:text-cyan-500 hover:underline disabled:opacity-50 disabled:cursor-not-allowed">
+                   + Add Bonus
+                </button>
+                 {!canUseAdvancedFeatures && <p className="text-xs text-yellow-600">Performance bonuses require the Growth Plan or higher.</p>}
             </div>
 
-
+            <Toggle
+                label="List on Marketplace"
+                enabled={isPubliclyListed}
+                onToggle={setIsPubliclyListed}
+                disabled={!canUseAdvancedFeatures}
+                disabledText="Listing on the Marketplace requires the Growth Plan or higher."
+            />
+            
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <div className="flex justify-end space-x-3 pt-4">
                 <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg hover:bg-cyan-600">{isEditMode ? 'Save Changes' : 'Add Product'}</button>
+                <button type="submit" className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">{isEditMode ? 'Save Changes' : 'Add Product'}</button>
             </div>
         </form>
       </div>
     </div>
   );
 };
-
+// FIX: Added default export to the AddProductModal component.
 export default AddProductModal;
