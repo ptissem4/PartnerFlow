@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 interface AffiliateSignupPageProps {
-  onSignup: (name: string, email: string) => void;
+  onSignup: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   onBack: () => void;
 }
 
@@ -12,7 +12,7 @@ const AffiliateSignupPage: React.FC<AffiliateSignupPageProps> = ({ onSignup, onB
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !password) {
         setError("All fields are required.");
@@ -28,12 +28,12 @@ const AffiliateSignupPage: React.FC<AffiliateSignupPageProps> = ({ onSignup, onB
     setError(null);
     setIsLoading(true);
 
-    // Simulate network delay and signup
-    setTimeout(() => {
-      onSignup(name, email);
-      // In a real app, login would happen after signup. Here we simulate success.
-      setIsLoading(false);
-    }, 1000);
+    const result = await onSignup(name, email, password);
+    if (!result.success) {
+      setError(result.error || 'Signup failed.');
+    }
+    // On success, App.tsx handles navigation
+    setIsLoading(false);
   };
 
   return (

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 interface AffiliateLoginPageProps {
-  onLogin: (email: string, password: string) => void;
+  onLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   onNavigateToMarketplace: () => void;
   onNavigateToSignup: () => void;
 }
@@ -12,7 +12,7 @@ const AffiliateLoginPage: React.FC<AffiliateLoginPageProps> = ({ onLogin, onNavi
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       setError("Email and password are required.");
@@ -20,11 +20,12 @@ const AffiliateLoginPage: React.FC<AffiliateLoginPageProps> = ({ onLogin, onNavi
     }
     setError(null);
     setIsLoading(true);
-    // Simulate login
-    setTimeout(() => {
-      onLogin(email, password);
-      setIsLoading(false);
-    }, 1000);
+    const result = await onLogin(email, password);
+    if (!result.success) {
+        setError(result.error || 'Login failed. Please check your credentials.');
+    }
+    // On success, App.tsx handles navigation.
+    setIsLoading(false);
   };
 
   return (

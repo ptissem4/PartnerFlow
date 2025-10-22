@@ -17,6 +17,7 @@ interface AffiliatePortalProps {
     setActiveView: (view: ActiveView) => void;
     showToast: (message: string) => void;
     onApply: (creatorId: string) => void;
+    onUpdateUser: (userId: string, data: Partial<User>) => void;
 }
 
 type AffiliatePage = 'Dashboard' | 'Programs' | 'Resources' | 'Payouts' | 'Marketplace' | 'Settings';
@@ -28,7 +29,7 @@ const StatCard: React.FC<{ title: string; value: string; }> = ({ title, value })
     </div>
 );
 
-const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, allUsers, allProducts, payouts, allResources, onLogout, setActiveView, showToast, onApply }) => {
+const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, allUsers, allProducts, payouts, allResources, onLogout, setActiveView, showToast, onApply, onUpdateUser }) => {
     const [activePage, setActivePage] = useState<AffiliatePage>('Dashboard');
     const [activeProgram, setActiveProgram] = useState<User | null>(null);
     const [showOnboarding, setShowOnboarding] = useState(affiliate.onboardingStepCompleted === undefined);
@@ -354,8 +355,7 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, 
                 />
             case 'Settings':
                 return <AffiliateSettings affiliate={affiliate} onUpdateProfile={(d) => {
-                    setUsers(users => users.map(u => u.id === affiliate.id ? {...u, ...d} : u));
-                    showToast("Profile updated!");
+                    onUpdateUser(affiliate.id, d);
                 }} showToast={showToast} />;
             default:
                 return <div>Dashboard</div>
