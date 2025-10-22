@@ -158,7 +158,7 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ onClose, onApplyTex
                         {generatedText && (
                             <button
                                 onClick={handleApply}
-                                className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600"
+                                className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600"
                             >
                                 Use This Text
                             </button>
@@ -166,7 +166,7 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({ onClose, onApplyTex
                         <button
                             onClick={handleGenerate}
                             disabled={isLoading}
-                            className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600 disabled:opacity-50"
+                            className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg hover:bg-cyan-600 disabled:opacity-50"
                         >
                             {isLoading ? 'Generating...' : generatedText ? 'Regenerate' : 'Generate'}
                         </button>

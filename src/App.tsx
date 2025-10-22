@@ -62,6 +62,7 @@ import Financials from '../components/Financials';
 import LoadingSpinner from '../components/LoadingSpinner';
 import CheckoutPage from '../components/CheckoutPage';
 import ThankYouPage from '../components/ThankYouPage';
+import CreatorProfilePage from '../components/CreatorProfilePage';
 
 
 // Types
@@ -69,7 +70,7 @@ export type Page = 'Dashboard' | 'Affiliates' | 'Products' | 'Resources' | 'Payo
 export type AdminPage = 'AdminDashboard' | 'Clients' | 'Analytics' | 'PartnerflowAffiliates' | 'PlatformSettings' | 'Financials';
 export type Theme = 'light' | 'dark';
 export type ActiveView = 'creator' | 'affiliate';
-export type AppView = 'landing' | 'login_selector' | 'creator_login' | 'affiliate_login' | 'register' | 'creator_affiliate_signup' | 'partnerflow_affiliate_signup' | 'app' | 'stripe_connect' | 'marketplace' | 'not_found' | 'affiliate_apply_signup' | 'affiliate_signup' | 'checkout-status' | 'thank_you';
+export type AppView = 'landing' | 'login_selector' | 'creator_login' | 'affiliate_login' | 'register' | 'creator_affiliate_signup' | 'partnerflow_affiliate_signup' | 'app' | 'stripe_connect' | 'marketplace' | 'not_found' | 'affiliate_apply_signup' | 'affiliate_signup' | 'checkout-status' | 'thank_you' | 'public_creator_page';
 
 const App: React.FC = () => {
     // State management
@@ -83,6 +84,7 @@ const App: React.FC = () => {
     const [selectedCreatorForAffiliateSignup, setSelectedCreatorForAffiliateSignup] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [planToCheckout, setPlanToCheckout] = useState<{ plan: Plan, cycle: 'monthly' | 'annual'} | null>(null);
+    const [publicCreator, setPublicCreator] = useState<User | null>(null);
 
 
     // Data state
@@ -111,14 +113,16 @@ const App: React.FC = () => {
         }
 
         setIsLoading(true);
+        // NOTE: These selects will fetch ALL data. In a production app, you MUST enable
+        // Row Level Security (RLS) in Supabase to ensure users can only access their own data.
         const [
-            { data: usersData }, 
-            { data: productsData }, 
-            { data: payoutsData }, 
-            { data: resourcesData }, 
-            { data: commsData }, 
-            { data: settingsData },
-            { data: paymentsData }
+            { data: usersData, error: usersError }, 
+            { data: productsData, error: productsError }, 
+            { data: payoutsData, error: payoutsError }, 
+            { data: resourcesData, error: resourcesError }, 
+            { data: commsData, error: commsError }, 
+            { data: settingsData, error: settingsError },
+            { data: paymentsData, error: paymentsError }
         ] = await Promise.all([
             supabase.from('users').select('*'),
             supabase.from('products').select('*'),
@@ -128,6 +132,14 @@ const App: React.FC = () => {
             supabase.from('user_settings').select('*').eq('user_id', sessionUser.id).single(),
             supabase.from('payments').select('*'),
         ]);
+
+        if (usersError) console.warn('Error fetching users:', usersError.message);
+        if (productsError) console.warn('Error fetching products:', productsError.message);
+        if (payoutsError) console.warn('Error fetching payouts:', payoutsError.message);
+        if (resourcesError) console.warn('Error fetching resources:', resourcesError.message);
+        if (commsError) console.warn('Error fetching communications:', commsError.message);
+        // A missing settings row is not a critical error, so we don't warn.
+        if (paymentsError) console.warn('Error fetching payments:', paymentsError.message);
 
         setUsers(usersData as User[] || []);
         setProducts(productsData as Product[] || []);
@@ -162,6 +174,31 @@ const App: React.FC = () => {
             setCommunications(mockCommunications);
             setUserSettings(mockUserSettings);
             setPayments(mockPayments);
+            // Public page routing for mock data
+            const path = window.location.pathname;
+            const urlParams = new URLSearchParams(window.location.search);
+            const refCreatorId = urlParams.get('ref');
+
+            if (refCreatorId) {
+                const creator = mockUsers.find(u => u.id === refCreatorId);
+                if (creator) {
+                    setSelectedCreatorForAffiliateSignup(creator);
+                    setAppView('creator_affiliate_signup');
+                } else {
+                    setAppView('not_found');
+                }
+            } else if (path !== '/' && path.length > 1) {
+                const slug = path.substring(1);
+                const creator = mockUsers.find(u => u.slug === slug && u.roles.includes('creator'));
+                if (creator) {
+                    setPublicCreator(creator);
+                    setAppView('public_creator_page');
+                } else {
+                    setAppView('not_found');
+                }
+            } else {
+                setAppView('landing');
+            }
             return;
         }
 
@@ -173,15 +210,42 @@ const App: React.FC = () => {
                 if (userProfile) {
                     setCurrentUser(userProfile);
                     await fetchData(session.user);
-                    if (appView !== 'app') setAppView('app');
+                    setPublicCreator(null);
+                    setAppView('app');
 
                     if (userProfile.roles.includes('super_admin')) setActivePage('AdminDashboard');
                     else if (userProfile.roles.includes('affiliate') && !userProfile.roles.includes('creator')) setActiveView('affiliate');
                     else setActivePage('Dashboard');
+                } else {
+                    setCurrentUser(null);
+                    setAppView('landing');
                 }
             } else {
-                setCurrentUser(null);
-                setAppView('landing');
+                 const path = window.location.pathname;
+                const urlParams = new URLSearchParams(window.location.search);
+                const refCreatorId = urlParams.get('ref');
+                
+                if (refCreatorId) {
+                    const { data: creator } = await supabase.from('users').select('*').eq('id', refCreatorId).single();
+                    if (creator) {
+                        setSelectedCreatorForAffiliateSignup(creator);
+                        setAppView('creator_affiliate_signup');
+                    } else {
+                        setAppView('not_found');
+                    }
+                } else if (path !== '/' && path.length > 1) {
+                    const slug = path.substring(1);
+                    const { data: creator } = await supabase.from('users').select('*').eq('slug', slug).single();
+                    if (creator) {
+                        setPublicCreator(creator);
+                        setAppView('public_creator_page');
+                    } else {
+                        setAppView('not_found');
+                    }
+                } else {
+                    setCurrentUser(null);
+                    setAppView('landing');
+                }
             }
             setIsLoading(false);
         });
@@ -189,7 +253,7 @@ const App: React.FC = () => {
         return () => {
             subscription.unsubscribe();
         };
-    }, [useMockData, fetchData, appView]);
+    }, [useMockData, fetchData]);
 
 
     const showToast = (message: string) => {
@@ -212,6 +276,7 @@ const App: React.FC = () => {
         
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) return { success: false, error: error.message };
+        // onAuthStateChange will handle the rest
         return { success: true };
     };
 
@@ -232,18 +297,26 @@ const App: React.FC = () => {
             setAppView('landing');
             setActivePage('Dashboard');
             setActiveView('creator');
+            // Hard refresh to simulate logout and clear URL state
+            window.location.href = '/';
             return;
         }
         await supabase.auth.signOut();
         setCurrentUser(null);
         setAppView('landing');
+         window.location.href = '/';
     };
     
     const handleSignup = async (name: string, companyName: string, email: string, password: string): Promise<{ success: boolean; error?: string; }> => {
-        if (useMockData) { /* ... existing mock logic ... */ return { success: true }; }
+        if (useMockData) {
+            showToast("Signup successful! You can now log in with demo credentials.");
+            setAppView('creator_login');
+            return { success: true };
+        }
 
-        const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name, company_name: companyName } } });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) return { success: false, error: error.message };
+
         if (data.user) {
             const { error: profileError } = await supabase.from('users').insert({
                 id: data.user.id,
@@ -259,13 +332,17 @@ const App: React.FC = () => {
                 onboardingStepCompleted: 0,
             });
 
-            if(profileError) return { success: false, error: profileError.message };
+            if(profileError) {
+                // If profile creation fails, it's best to inform the user and maybe clean up the auth user.
+                // For now, just returning the error is sufficient.
+                return { success: false, error: `Could not create user profile: ${profileError.message}` };
+            }
 
             showToast("Registration successful! Please check your email to confirm your account.");
             setAppView('creator_login');
             return { success: true };
         }
-        return { success: false, error: 'An unknown error occurred.' };
+        return { success: false, error: 'An unknown error occurred during signup.' };
     };
     
     const handlePlanChange = async (newPlanName: string, billingCycle: 'monthly' | 'annual') => {
@@ -509,6 +586,20 @@ const App: React.FC = () => {
     
     if (!currentUser || appView !== 'app') {
         switch (appView) {
+            case 'public_creator_page':
+                if (publicCreator) {
+                    const creatorProducts = (useMockData ? mockProducts : products).filter(p => p.user_id === publicCreator.id && p.isPubliclyListed);
+                    return <CreatorProfilePage 
+                        creator={publicCreator}
+                        products={creatorProducts}
+                        onJoin={(creatorId) => {
+                            const creator = (useMockData ? mockUsers : users).find(u => u.id === creatorId);
+                            setSelectedCreatorForAffiliateSignup(creator || null);
+                            setAppView('creator_affiliate_signup');
+                        }}
+                    />
+                }
+                return <NotFoundPage onNavigateHome={() => setAppView('landing')} />;
             case 'landing':
                 return <LandingPage 
                             onNavigateToLogin={() => setAppView('creator_login')} 
@@ -712,7 +803,7 @@ const App: React.FC = () => {
             case 'Billing':
                 return <Billing currentUser={currentUser} affiliates={myAffiliates} products={myProducts} onPlanChange={handlePlanChange} isTrialExpired={isTrialExpired} />;
             case 'Settings':
-                return <Settings currentUser={currentUser} userSettings={userSettings!} onSettingsChange={setUserSettings} setAppView={setAppView} />;
+                return <Settings currentUser={currentUser} userSettings={userSettings} onSettingsChange={setUserSettings} setAppView={setAppView} />;
             default:
                 return <Dashboard 
                             affiliates={myAffiliates} 
@@ -729,7 +820,7 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className={`flex h-screen bg-gray-100 dark:bg-gray-900 ${theme}`}>
+        <div className={`flex h-screen bg-gray-50 dark:bg-gray-950 ${theme}`}>
             <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
             {onboardingIncomplete &&
                 <OnboardingModal 
@@ -770,7 +861,7 @@ const App: React.FC = () => {
                     onStartOnboarding={() => {}} // This should open the modal, but it's auto-opened
                     onboardingIncomplete={onboardingIncomplete}
                 />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
+                <main className="flex-1 overflow-x-hidden overflow-y-auto p-8">
                     {renderPage()}
                 </main>
             </div>

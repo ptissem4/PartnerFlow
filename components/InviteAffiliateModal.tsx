@@ -52,7 +52,7 @@ const InviteAffiliateModal: React.FC<InviteAffiliateModalProps> = ({ onClose, on
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600"
+              className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg hover:bg-cyan-600"
             >
               Send Invite
             </button>

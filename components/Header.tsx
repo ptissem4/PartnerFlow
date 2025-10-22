@@ -35,7 +35,7 @@ const ThemeToggleButton: React.FC<{ theme: Theme; toggleTheme: () => void }> = (
 
 const ViewSwitcher: React.FC<{ activeView: ActiveView; setActiveView: (view: ActiveView) => void; }> = ({ activeView, setActiveView }) => {
     return (
-        <div className="flex items-center bg-gray-200 dark:bg-gray-700 rounded-full p-1 text-sm font-medium">
+        <div className="flex items-center bg-gray-100 dark:bg-gray-700/50 rounded-full p-1 text-sm font-medium">
             <button
                 onClick={() => setActiveView('creator')}
                 className={`px-3 py-1 rounded-full transition-colors ${activeView === 'creator' ? 'bg-white dark:bg-gray-800 shadow text-cyan-500' : 'text-gray-500 dark:text-gray-400'}`}
@@ -87,7 +87,7 @@ const Header: React.FC<HeaderProps> = ({ title, theme, setTheme, onMenuClick, cu
                 <span>You have {trialDaysRemaining} {trialDaysRemaining === 1 ? 'day' : 'days'} left in your trial. <button onClick={onUpgradeClick} className="font-bold underline hover:text-yellow-950">Upgrade Now</button></span>
             </div>
         )}
-        <header className="flex items-center justify-between p-4">
+        <header className="flex items-center justify-between px-8 py-4">
           <div className="flex items-center">
             {(activeView === 'creator' || isSuperAdmin) && (
                 <button

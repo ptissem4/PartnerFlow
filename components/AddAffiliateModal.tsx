@@ -105,7 +105,7 @@ const AddAffiliateModal: React.FC<AddAffiliateModalProps> = ({ onClose, onSave, 
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600"
+              className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg hover:bg-cyan-600"
             >
               {isEditMode ? 'Save Changes' : 'Add Affiliate'}
             </button>

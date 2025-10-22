@@ -24,6 +24,10 @@ export interface User {
 
   // Creator-specific
   company_name?: string;
+  slug?: string;
+  publicBio?: string;
+  cookieDuration?: number;
+  payoutMethod?: 'PayPal' | 'Stripe';
   
   // Affiliate-specific
   sales?: number;
@@ -176,8 +180,8 @@ const MOCK_SARA_ID = 'g7h8i9j0-sara-k-0000-000000000007';
 
 export const users: User[] = [
     { id: MOCK_ADMIN_ID, name: 'Super Admin', email: 'admin@partnerflow.app', avatar: 'https://i.pravatar.cc/150?u=admin', roles: ['super_admin', 'creator'], status: 'Active', joinDate: daysAgo(365), company_name: 'PartnerFlow HQ' },
-    { id: MOCK_ALEX_ID, name: 'Alex Doe', email: 'alex.doe@example.com', avatar: `https://i.pravatar.cc/150?u=alex.doe@example.com`, roles: ['creator'], currentPlan: 'Starter Plan', joinDate: daysAgo(5), status: 'Active', trialEndsAt: new Date(new Date().setDate(new Date().getDate() + 9)).toISOString(), company_name: 'Alex Courses', onboardingStepCompleted: 5 },
-    { id: MOCK_JENNA_ID, name: 'Jenna Smith', email: 'jenna.s@example.com', avatar: `https://i.pravatar.cc/150?u=jenna.s@example.com`, roles: ['creator', 'affiliate'], currentPlan: 'Growth Plan', joinDate: daysAgo(180), status: 'Active', company_name: 'Jenna\'s Coaching', billingCycle: 'monthly', onboardingStepCompleted: 5, partnerships: [{ creatorId: MOCK_ALEX_ID, status: 'Active' }], sales: 2, commission: 159.2, clicks: 55, conversionRate: 3.6, referralCode: 'JENNA-S', couponCode: 'JENNA10' },
+    { id: MOCK_ALEX_ID, name: 'Alex Doe', email: 'alex.doe@example.com', avatar: `https://i.pravatar.cc/150?u=alex.doe@example.com`, roles: ['creator'], currentPlan: 'Starter Plan', joinDate: daysAgo(5), status: 'Active', trialEndsAt: new Date(new Date().setDate(new Date().getDate() + 9)).toISOString(), company_name: 'Alex Courses', slug: 'alex-invests', publicBio: 'Learn to build wealth with my straightforward investing courses. High conversion rates and generous commissions for my partners.', onboardingStepCompleted: 5, cookieDuration: 45, payoutMethod: 'PayPal' },
+    { id: MOCK_JENNA_ID, name: 'Jenna Smith', email: 'jenna.s@example.com', avatar: `https://i.pravatar.cc/150?u=jenna.s@example.com`, roles: ['creator', 'affiliate'], currentPlan: 'Growth Plan', joinDate: daysAgo(180), status: 'Active', company_name: 'Jenna\'s Coaching', billingCycle: 'monthly', slug: 'jennas-coaching', publicBio: 'I help creators build sustainable businesses through productivity systems and smart marketing. Join my affiliate program and earn commissions promoting courses your audience will love.', onboardingStepCompleted: 5, cookieDuration: 30, payoutMethod: 'PayPal', partnerships: [{ creatorId: MOCK_ALEX_ID, status: 'Active' }], sales: 2, commission: 159.2, clicks: 55, conversionRate: 3.6, referralCode: 'JENNA-S', couponCode: 'JENNA10' },
     { id: MOCK_EVA_ID, name: 'Eva Gardner', email: 'eva.gardner@example.com', avatar: `https://i.pravatar.cc/150?u=eva.gardner@example.com`, roles: ['creator'], currentPlan: 'Starter Plan', joinDate: daysAgo(45), status: 'Active', trialEndsAt: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(), company_name: 'Eva\'s Art', onboardingStepCompleted: 5 },
     { id: MOCK_ONBOARDING_ID, name: 'Onboarding Tester', email: 'onboarding.tester@example.com', avatar: `https://i.pravatar.cc/150?u=onboarding.tester@example.com`, roles: ['creator'], currentPlan: 'Starter Plan', joinDate: daysAgo(1), status: 'Active', trialEndsAt: new Date(new Date().setDate(new Date().getDate() + 13)).toISOString(), company_name: 'Setup Co.', onboardingStepCompleted: 0 },
     { id: MOCK_ELENA_ID, name: 'Elena Rodriguez', email: 'elena.r@example.com', avatar: `https://i.pravatar.cc/150?u=elena.r@example.com`, roles: ['affiliate'], joinDate: daysAgo(90), status: 'Active', partnerships: [{ creatorId: MOCK_JENNA_ID, status: 'Active' }], sales: 25, commission: 2497.5, clicks: 550, conversionRate: 4.5, referralCode: 'ELENA-R', couponCode: 'ELENA15', paypal_email: 'elena.paypal@example.com' },

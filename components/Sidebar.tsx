@@ -24,8 +24,8 @@ const NavItem: React.FC<{
     disabled={isDisabled}
     className={`flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${
       activePage === page
-        ? 'bg-cyan-500 text-white shadow-lg'
-        : 'text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700'
+        ? 'bg-cyan-500 text-white shadow'
+        : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
     } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     title={isDisabled ? "Please subscribe to access this page." : ""}
   >
@@ -55,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, isOpen, se
         className="flex items-center mb-10 text-left w-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 rounded-lg p-1 -ml-1"
         aria-label="Go to dashboard"
       >
-        <div className="p-2 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-lg shadow-md">
+        <div className="p-2 bg-cyan-500 rounded-lg">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
           </svg>

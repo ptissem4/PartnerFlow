@@ -39,7 +39,7 @@ const ChevronIcon: React.FC<{ isOpen: boolean }> = ({ isOpen }) => (
 );
 
 const ResourceCard: React.FC<{ resource: Resource, onEdit: () => void, onDelete: () => void }> = ({ resource, onEdit, onDelete }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex flex-col justify-between animate-fade-in-up">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex flex-col justify-between animate-fade-in-up">
         <div>
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
@@ -159,7 +159,7 @@ const Creatives: React.FC<CreativesProps> = ({ resources, setResources, useMockD
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
                 <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-4">
                     <div className="w-full sm:w-auto">
                         <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Resource Library</h3>

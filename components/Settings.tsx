@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 // FIX: The Plan type is now imported from mockData.ts to resolve a circular dependency.
-import { User, UserSettings, planDetails, Plan } from '../data/mockData';
+import { User, UserSettings, planDetails, Plan, userSettings as defaultUserSettings } from '../data/mockData';
 import { AppView } from '../src/App';
 import ConfirmationModal from './ConfirmationModal';
 
 
 interface SettingsProps {
     currentUser: User;
-    userSettings: UserSettings;
+    userSettings: UserSettings | null;
     onSettingsChange: (settings: UserSettings) => void;
     setAppView: (view: AppView) => void;
 }
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode, footer?: React.ReactNode }> = ({ title, children, footer }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
     <div className="p-6">
       <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">{title}</h3>
       <div className="space-y-4">
@@ -21,7 +21,7 @@ const SettingsCard: React.FC<{ title: string; children: React.ReactNode, footer?
       </div>
     </div>
     {footer && (
-        <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 text-right rounded-b-lg">
+        <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 text-right rounded-b-xl">
             {footer}
         </div>
     )}
@@ -39,7 +39,16 @@ const Toggle: React.FC<{ label: string; enabled: boolean; onToggle: (enabled: bo
   </label>
 );
 
-const Settings: React.FC<SettingsProps> = ({ currentUser, userSettings, onSettingsChange, setAppView }) => {
+const Settings: React.FC<SettingsProps> = ({ currentUser, userSettings: userSettingsProp, onSettingsChange, setAppView }) => {
+    // If userSettings is null (e.g., for a new user), create a default object.
+    const userSettings = userSettingsProp || {
+        ...defaultUserSettings,
+        user_id: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email,
+        company_name: currentUser.company_name || '',
+    };
+    
     const [copied, setCopied] = useState(false);
     const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
 
@@ -97,8 +106,8 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, userSettings, onSettin
             onCancel={() => setShowDisconnectConfirm(false)}
         />
     )}
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <SettingsCard 
             title="Profile"
             footer={<button className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75">Save Changes</button>}
@@ -117,7 +126,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, userSettings, onSettin
               </div>
           </SettingsCard>
 
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-8">
             <SettingsCard title="Payout Provider">
                 <p className="text-sm text-gray-600 dark:text-gray-400">Connect a payment provider to enable automated mass payouts to your affiliates.</p>
                 <div className="flex items-center justify-between">

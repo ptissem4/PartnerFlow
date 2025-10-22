@@ -143,7 +143,7 @@ const Dashboard: React.FC<DashboardProps> = ({ affiliates, products, payouts, on
             onRecordSaleByCoupon={onRecordSaleByCoupon}
         />
     }
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex flex-wrap justify-between items-center gap-4">
         <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Dashboard</h2>
          <DateRangeFilter
@@ -178,9 +178,9 @@ const Dashboard: React.FC<DashboardProps> = ({ affiliates, products, payouts, on
       </div>
 
       {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Sales Chart */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
           <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Affiliate Sales Performance (12 Months)</h3>
           <div className="h-80">
             <SalesPerformanceChart data={monthlySalesData} />
@@ -188,9 +188,9 @@ const Dashboard: React.FC<DashboardProps> = ({ affiliates, products, payouts, on
         </div>
 
         {/* Top Lists */}
-        <div className="space-y-6">
+        <div className="space-y-8">
             {/* Top Affiliates */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
             <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Top Affiliates</h3>
             <ul className="space-y-4">
                 {topAffiliates.map(affiliate => (
@@ -208,7 +208,7 @@ const Dashboard: React.FC<DashboardProps> = ({ affiliates, products, payouts, on
             </ul>
             </div>
              {/* Top Products */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
             <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Top Products</h3>
             <ul className="space-y-4">
                 {topProducts.map(product => (

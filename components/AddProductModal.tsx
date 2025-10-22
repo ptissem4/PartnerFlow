@@ -298,7 +298,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ onClose, onSave, prod
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <div className="flex justify-end space-x-3 pt-4">
                 <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">{isEditMode ? 'Save Changes' : 'Add Product'}</button>
+                <button type="submit" className="px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg hover:bg-cyan-600">{isEditMode ? 'Save Changes' : 'Add Product'}</button>
             </div>
         </form>
       </div>

@@ -47,9 +47,9 @@ const Communicate: React.FC<CommunicateProps> = ({ affiliates, communications, o
         )}
         <div className="space-y-6">
             <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Communicate with Affiliates</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-1">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Compose Message</h3>
                             <button 
@@ -106,7 +106,7 @@ const Communicate: React.FC<CommunicateProps> = ({ affiliates, communications, o
                     </div>
                 </div>
                 <div className="lg:col-span-2">
-                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
                         <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Communication History</h3>
                         <div className="space-y-4 max-h-[60vh] overflow-y-auto">
                             {communications.length > 0 ? communications.map(comm => (

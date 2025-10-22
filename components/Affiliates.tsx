@@ -259,7 +259,7 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, allUsers, setUsers,
     }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
     {isAddModalOpen && <AddAffiliateModal onClose={() => setIsAddModalOpen(false)} onSave={handleSaveAffiliate} affiliateToEdit={editingAffiliate} />}
     {isInviteModalOpen && <InviteAffiliateModal onClose={() => setIsInviteModalOpen(false)} onSend={handleSendInvite} />}
     {affiliateToDelete && (
@@ -270,7 +270,7 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, allUsers, setUsers,
             onCancel={() => setAffiliateToDelete(null)}
         />
     )}
-     <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow">
+     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
         <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Affiliate Invitation Link</h3>
         <p className="text-gray-600 dark:text-gray-400 mt-2">
             Share this unique link on your website or social media to invite new affiliates to join your program.
@@ -287,7 +287,7 @@ const Affiliates: React.FC<AffiliatesProps> = ({ affiliates, allUsers, setUsers,
             </button>
         </div>
       </div>
-    <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow">
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
       <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-4">
         <div className="w-full sm:w-auto">
             <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Manage Affiliates</h3>

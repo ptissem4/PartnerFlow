@@ -193,7 +193,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onNavigateToLogi
                         </FadeIn>
 
                         <FadeIn className="mt-20 max-w-5xl mx-auto">
-                           <AppShowcase />
+                           <div className="overflow-x-auto pb-4 -mx-6 px-6 lg:mx-0 lg:px-0">
+                                <div className="min-w-[800px] lg:min-w-full">
+                                    <AppShowcase />
+                                </div>
+                            </div>
                             <div className="mt-12">
                                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-4">Trusted by leading creators and coaches</p>
                                 <div className="flex justify-center items-center gap-8 opacity-60">

@@ -22,7 +22,7 @@ interface AffiliatePortalProps {
 type AffiliatePage = 'Dashboard' | 'Programs' | 'Resources' | 'Payouts' | 'Marketplace' | 'Settings';
 
 const StatCard: React.FC<{ title: string; value: string; }> = ({ title, value }) => (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 text-center">
         <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{title}</h4>
         <p className="text-3xl font-bold text-gray-800 dark:text-white">{value}</p>
     </div>
@@ -33,15 +33,24 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, 
     const [activeProgram, setActiveProgram] = useState<User | null>(null);
     const [showOnboarding, setShowOnboarding] = useState(affiliate.onboardingStepCompleted === undefined);
     const [copiedResourceId, setCopiedResourceId] = useState<number | null>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const canSwitchToCreator = affiliate.roles.includes('creator');
 
     const handleLogoClick = () => {
         setActivePage('Dashboard');
         setActiveProgram(null);
+        setIsSidebarOpen(false);
+    };
+    
+    const handleNavClick = (page: AffiliatePage) => {
+        setActivePage(page);
+        setActiveProgram(null);
+        if (isSidebarOpen) {
+            setIsSidebarOpen(false);
+        }
     };
 
-    // FIX: A component must return JSX, not implicitly void.
     const ResourceIcon: React.FC<{type: ResourceType}> = ({ type }) => {
         const className = "h-5 w-5 text-gray-500 dark:text-gray-400";
         switch (type) {
@@ -116,7 +125,7 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, 
                 <button onClick={onBack} className="flex items-center text-sm font-medium text-cyan-600 dark:text-cyan-500 hover:underline">
                     &larr; Back to My Programs
                 </button>
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
                     <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Products from {partner.company_name}</h3>
                     <div className="space-y-4">
                         {products.map(product => {
@@ -137,33 +146,29 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, 
                         })}
                     </div>
                 </div>
-                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-6">
+                 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 space-y-6">
                     <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Resources</h3>
                     {products.map(product => {
                         const productResources = resources.filter(res => res.productIds.includes(product.id));
-                        if (productResources.length === 0) return null;
-
-                        return (
-                            <div key={product.id}>
-                                <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3 text-lg">{product.name}</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {productResources.map(res => <ResourceCard key={res.id} resource={res} />)}
+                        if (productResources.length > 0) {
+                            return (
+                                <div key={product.id} className="pt-4 border-t border-gray-200 dark:border-gray-700 first:pt-0 first:border-t-0">
+                                    <h4 className="font-semibold text-gray-800 dark:text-white mb-2">{product.name} Resources</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {productResources.map(res => <ResourceCard key={res.id} resource={res} />)}
+                                    </div>
                                 </div>
-                            </div>
-                        );
+                            );
+                        }
+                        return null;
                     })}
-
                     {generalResources.length > 0 && (
-                        <div>
-                            <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3 text-lg">General Resources</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="pt-4 border-t border-gray-200 dark:border-gray-700 first:pt-0 first:border-t-0">
+                             <h4 className="font-semibold text-gray-800 dark:text-white mb-2">General Resources</h4>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {generalResources.map(res => <ResourceCard key={res.id} resource={res} />)}
                             </div>
                         </div>
-                    )}
-
-                    {resources.length === 0 && (
-                            <p className="text-center text-sm text-gray-500 dark:text-gray-400 py-4">No resources available for this program yet.</p>
                     )}
                 </div>
             </div>
@@ -171,329 +176,253 @@ const AffiliatePortal: React.FC<AffiliatePortalProps> = ({ affiliate, setUsers, 
     };
 
     const affiliatePayouts = useMemo(() => payouts.filter(p => p.user_id === affiliate.id), [payouts, affiliate.id]);
-    const affiliateResources = useMemo(() => {
-        const creatorIds = affiliate.partnerships?.filter(p => p.status === 'Active').map(p => p.creatorId) || [];
-        return allResources.filter(r => creatorIds.includes(r.user_id));
-    }, [allResources, affiliate.partnerships]);
-
-    const dashboardStats = useMemo(() => {
+    
+    const affiliateSalesHistory = useMemo(() => {
         const allSales = affiliatePayouts.flatMap(p => p.sales);
-        const totalCommission = allSales.reduce((sum, sale) => sum + sale.commissionAmount, 0);
-        const pendingCommission = allSales.filter(s => s.status === 'Pending').reduce((sum, sale) => sum + sale.commissionAmount, 0);
-        const clicks = affiliate.clicks || 0;
-        const totalSalesCount = allSales.length;
-        const conversionRate = clicks > 0 ? (totalSalesCount / clicks) * 100 : 0;
-        return { totalCommission, pendingCommission, clicks, totalSalesCount, conversionRate, allSales };
-    }, [affiliatePayouts, affiliate.clicks]);
-
-    const commissionChartData = useMemo(() => {
         const salesByMonth: { [key: string]: number } = {};
         const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         
         const today = new Date();
         const monthKeys: string[] = [];
-        for (let i = 5; i >= 0; i--) {
+        for (let i = 11; i >= 0; i--) {
             const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
             const monthName = `${monthNames[d.getMonth()]} '${String(d.getFullYear()).slice(-2)}`;
             salesByMonth[monthName] = 0;
             monthKeys.push(monthName);
         }
         
-        const startOf6Months = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+        const startOf12Months = new Date(today.getFullYear(), today.getMonth() - 11, 1);
 
-        dashboardStats.allSales.forEach(sale => {
+        allSales.forEach(sale => {
             const saleDate = new Date(sale.date);
-            if (saleDate >= startOf6Months) {
+            if (saleDate >= startOf12Months) {
                 const saleMonthName = `${monthNames[saleDate.getMonth()]} '${String(saleDate.getFullYear()).slice(-2)}`;
                 if (salesByMonth.hasOwnProperty(saleMonthName)) {
-                    salesByMonth[saleMonthName] += sale.commissionAmount;
+                    salesByMonth[saleMonthName] += sale.saleAmount;
                 }
             }
         });
+
         return monthKeys.map(name => ({ name, sales: salesByMonth[name] }));
-    }, [dashboardStats.allSales]);
+    }, [affiliatePayouts]);
 
-    const handleUpdateProfile = (updatedData: Partial<User>) => {
-        setUsers(prevUsers => 
-            prevUsers.map(u => u.id === affiliate.id ? { ...u, ...updatedData } : u)
-        );
-        showToast("Profile updated successfully!");
-    };
+    const partnerPrograms = useMemo(() => {
+        return (affiliate.partnerships || [])
+            .map(p => {
+                const creator = allUsers.find(u => u.id === p.creatorId);
+                return creator ? { ...creator, partnershipStatus: p.status } : null;
+            })
+            .filter((p): p is User & { partnershipStatus: Partnership['status'] } => p !== null);
+    }, [affiliate.partnerships, allUsers]);
 
-    const getPartnershipStatusBadge = (status: Partnership['status']) => {
-        switch (status) {
-            case 'Active': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-            case 'Pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-            case 'Inactive': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+    const activeProgramDetails = useMemo(() => {
+        if (!activeProgram) return null;
+        const products = allProducts.filter(p => p.user_id === activeProgram.id);
+        const resources = allResources.filter(r => r.user_id === activeProgram.id);
+        return { products, resources };
+    }, [activeProgram, allProducts, allResources]);
+
+    const NavItem: React.FC<{ page: AffiliatePage, label: string, icon: React.ReactNode }> = ({ page, label, icon }) => (
+        <button
+            onClick={() => handleNavClick(page)}
+            className={`flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${
+            activePage === page
+                ? 'bg-cyan-500 text-white shadow'
+                : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
+            }`}
+        >
+            {icon}
+            <span className="ml-3">{label}</span>
+        </button>
+    );
+
+    const renderPageContent = () => {
+        if (activeProgram && activeProgramDetails) {
+            return <ProgramDetailView 
+                affiliate={affiliate}
+                partner={activeProgram}
+                products={activeProgramDetails.products}
+                resources={activeProgramDetails.resources}
+                onBack={() => setActiveProgram(null)}
+            />;
+        }
+
+        switch(activePage) {
+            case 'Dashboard':
+                return (
+                    <div className="space-y-6">
+                        <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Affiliate Dashboard</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <StatCard title="Total Sales" value={(affiliate.sales || 0).toString()} />
+                            <StatCard title="Total Commission" value={`$${(affiliate.commission || 0).toLocaleString()}`} />
+                            <StatCard title="Total Clicks" value={(affiliate.clicks || 0).toLocaleString()} />
+                            <StatCard title="Conversion Rate" value={`${(affiliate.conversionRate || 0)}%`} />
+                        </div>
+                         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                          <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Sales Performance (12 Months)</h3>
+                          <div className="h-80">
+                            <SalesPerformanceChart data={affiliateSalesHistory} />
+                          </div>
+                        </div>
+                    </div>
+                )
+            case 'Programs':
+                return (
+                    <div className="space-y-6">
+                        <h2 className="text-3xl font-bold text-gray-800 dark:text-white">My Programs</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {partnerPrograms.map(program => (
+                                <div key={program.id} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                                    <div className="flex items-center mb-4">
+                                        <img src={program.avatar} alt={program.name} className="w-12 h-12 rounded-full mr-4"/>
+                                        <div>
+                                            <h3 className="font-semibold text-lg text-gray-800 dark:text-white">{program.company_name}</h3>
+                                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${program.partnershipStatus === 'Active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{program.partnershipStatus}</span>
+                                        </div>
+                                    </div>
+                                    {program.partnershipStatus === 'Active' ? (
+                                        <button onClick={() => setActiveProgram(program)} className="w-full mt-4 px-4 py-2 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600">
+                                            View Links & Resources
+                                        </button>
+                                    ) : (
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">Your application is pending. You'll be notified upon approval.</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            case 'Resources':
+                 const allPartnerResources = allResources.filter(res => partnerPrograms.some(p => p.id === res.user_id));
+                 return (
+                     <div>
+                         <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">All Resources</h2>
+                         <div className="space-y-6">
+                             {partnerPrograms.filter(p => p.partnershipStatus === 'Active').map(program => {
+                                 const programResources = allPartnerResources.filter(r => r.user_id === program.id);
+                                 if (programResources.length === 0) return null;
+                                 return (
+                                     <div key={program.id} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                                         <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Resources from {program.company_name}</h3>
+                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                             {programResources.map(res => <ResourceCard key={res.id} resource={res} />)}
+                                         </div>
+                                     </div>
+                                 )
+                             })}
+                         </div>
+                     </div>
+                 );
+            case 'Payouts':
+                return (
+                     <div className="space-y-6">
+                        <h2 className="text-3xl font-bold text-gray-800 dark:text-white">My Payouts</h2>
+                         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                            <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Payout History</h3>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm text-gray-500 dark:text-gray-400">
+                                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                        <tr>
+                                            <th className="px-6 py-3">Period</th>
+                                            <th className="px-6 py-3">Amount</th>
+                                            <th className="px-6 py-3">Status</th>
+                                            <th className="px-6 py-3">Due Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {affiliatePayouts.map(payout => (
+                                            <tr key={payout.id} className="border-b dark:border-gray-700">
+                                                <td className="px-6 py-4">{payout.period}</td>
+                                                <td className="px-6 py-4 font-semibold">${payout.amount.toLocaleString()}</td>
+                                                <td className="px-6 py-4"><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-800">{payout.status}</span></td>
+                                                <td className="px-6 py-4">{payout.due_date}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                         </div>
+                     </div>
+                )
+            case 'Marketplace':
+                return <Marketplace 
+                    products={allProducts.filter(p => p.isPubliclyListed)} 
+                    users={allUsers} 
+                    onBack={() => {}}
+                    currentUser={affiliate}
+                    onApply={onApply}
+                />
+            case 'Settings':
+                return <AffiliateSettings affiliate={affiliate} onUpdateProfile={(d) => {
+                    setUsers(users => users.map(u => u.id === affiliate.id ? {...u, ...d} : u));
+                    showToast("Profile updated!");
+                }} showToast={showToast} />;
+            default:
+                return <div>Dashboard</div>
         }
     }
     
-    const getPayoutStatusBadge = (status: Payout['status']) => {
-        switch (status) {
-            case 'Paid': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-            case 'Due': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-            case 'Scheduled': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-        }
-    };
+    // Icons for sidebar
+    const HomeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
+    const BriefcaseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
+    const BookOpenIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>;
+    const CreditCardIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H4a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>;
+    const StorefrontIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>;
+    const CogIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.096 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
     
-
-    const renderDashboard = () => (
-         <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Dashboard</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Total Commission" value={`$${dashboardStats.totalCommission.toLocaleString(undefined, {minimumFractionDigits: 2})}`} />
-                <StatCard title="Pending Commission" value={`$${dashboardStats.pendingCommission.toLocaleString(undefined, {minimumFractionDigits: 2})}`} />
-                <StatCard title="Total Clicks" value={dashboardStats.clicks.toLocaleString()} />
-                <StatCard title="Conversion Rate" value={`${dashboardStats.conversionRate.toFixed(2)}%`} />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                    <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Commission Performance (6 Months)</h3>
-                    <div className="h-80">
-                        <SalesPerformanceChart data={commissionChartData} />
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                    <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Recent Sales</h3>
-                    <ul className="space-y-3">
-                        {dashboardStats.allSales.slice(0, 5).map(sale => (
-                            <li key={sale.id} className="flex justify-between items-center text-sm">
-                                <div>
-                                    <p className="font-medium text-gray-800 dark:text-white">{sale.productName}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(sale.date).toLocaleDateString()}</p>
-                                </div>
-                                <span className="font-semibold text-green-500">+${sale.commissionAmount.toFixed(2)}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderPrograms = () => (
-        <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white">My Programs</h2>
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <div className="space-y-3">
-                    {affiliate.partnerships && affiliate.partnerships.length > 0 ? (
-                        affiliate.partnerships.map(p => {
-                            const creator = allUsers.find(u => u.id === p.creatorId);
-                            if (!creator) return null;
-                            const canView = p.status === 'Active';
-                            return (
-                                <div key={p.creatorId} className={`flex items-center justify-between p-4 rounded-lg ${canView ? 'bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer' : 'bg-gray-100 dark:bg-gray-700 opacity-70'}`}
-                                     onClick={() => canView && setActiveProgram(creator)}>
-                                    <div className="flex items-center">
-                                        <img src={creator.avatar} alt={creator.company_name} className="w-10 h-10 rounded-full mr-4" />
-                                        <div>
-                                            <p className="font-semibold text-gray-800 dark:text-white">{creator.company_name}</p>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">Affiliate Program</p>
-                                        </div>
-                                    </div>
-                                    <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${getPartnershipStatusBadge(p.status)}`}>
-                                        {p.status}
-                                    </span>
-                                </div>
-                            )
-                        })
-                    ) : (
-                        <p className="text-gray-500 dark:text-gray-400">You haven't joined any programs yet. Check out the marketplace!</p>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-    
-    const renderResources = () => {
-        const activePartnerships = affiliate.partnerships?.filter(p => p.status === 'Active') || [];
-    
-        return (
-            <div className="space-y-6">
-                <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Marketing Resources</h2>
-                {activePartnerships.length === 0 && (
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center text-gray-500 dark:text-gray-400">
-                        You haven't joined any active programs yet. Resources will appear here once you're approved.
-                    </div>
-                )}
-                {activePartnerships.map(p => {
-                    const creator = allUsers.find(u => u.id === p.creatorId);
-                    if (!creator) return null;
-    
-                    const creatorProducts = allProducts.filter(prod => prod.user_id === creator.id);
-                    const creatorResources = affiliateResources.filter(res => res.user_id === creator.id);
-    
-                    if (creatorResources.length === 0) return null;
-    
-                    const generalResources = creatorResources.filter(res => res.productIds.length === 0);
-    
-                    return (
-                        <div key={creator.id} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-6">
-                            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">From {creator.company_name}</h3>
-                            
-                            {creatorProducts.map(product => {
-                                const productResources = creatorResources.filter(res => res.productIds.includes(product.id));
-                                if (productResources.length === 0) return null;
-    
-                                return (
-                                    <div key={product.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                                        <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">{product.name}</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {productResources.map(res => <ResourceCard key={res.id} resource={res} />)}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-    
-                            {generalResources.length > 0 && (
-                                 <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                                    <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">General Resources</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {generalResources.map(res => <ResourceCard key={res.id} resource={res} />)}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    };
-    
-    const renderPayouts = () => (
-         <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white">My Payouts</h2>
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-gray-500 dark:text-gray-400">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                                <th scope="col" className="px-6 py-3">Date</th>
-                                <th scope="col" className="px-6 py-3">Amount</th>
-                                <th scope="col" className="px-6 py-3">Status</th>
-                                <th scope="col" className="px-6 py-3">From</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {affiliatePayouts.sort((a,b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime()).map(payout => {
-                                // FIX: Corrected operator precedence bug that compared string and Sale object.
-                                // This is a clearer way to find the creator for the payout.
-                                const creatorId = payout.sales[0] ? allProducts.find(p => p.id === payout.sales[0].productId)?.user_id : undefined;
-                                const creator = creatorId ? allUsers.find(u => u.id === creatorId) : undefined;
-                                return (
-                                    <tr key={payout.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                        <td className="px-6 py-4">{payout.due_date}</td>
-                                        <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">${payout.amount.toLocaleString()}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${getPayoutStatusBadge(payout.status)}`}>
-                                                {payout.status}
-                                            </span>
-                                        </td>
-                                         <td className="px-6 py-4">{creator?.company_name || 'N/A'}</td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderContent = () => {
-        if (activeProgram) {
-            return <ProgramDetailView 
-                        affiliate={affiliate} 
-                        partner={activeProgram}
-                        products={allProducts.filter(p => p.user_id === activeProgram.id)}
-                        resources={allResources.filter(r => r.user_id === activeProgram.id)}
-                        onBack={() => setActiveProgram(null)}
-                    />;
-        }
-
-        switch (activePage) {
-            case 'Dashboard': return renderDashboard();
-            case 'Programs': return renderPrograms();
-            case 'Resources': return renderResources();
-            case 'Payouts': return renderPayouts();
-            case 'Marketplace':
-                return <Marketplace 
-                            products={allProducts.filter(p => p.isPubliclyListed)}
-                            users={allUsers}
-                            onBack={() => setActivePage('Dashboard')}
-                            currentUser={affiliate}
-                            onApply={onApply}
-                        />;
-            case 'Settings':
-                return <AffiliateSettings affiliate={affiliate} onUpdateProfile={handleUpdateProfile} showToast={showToast} />;
-        }
-    };
-    
-    const navItems: { page: AffiliatePage, label: string, icon: React.ReactNode }[] = [
-        { page: 'Dashboard', label: 'Dashboard', icon: <HomeIcon /> },
-        { page: 'Programs', label: 'Programs', icon: <BriefcaseIcon /> },
-        { page: 'Resources', label: 'Resources', icon: <GiftIcon /> },
-        { page: 'Payouts', label: 'Payouts', icon: <WalletIcon /> },
-        { page: 'Marketplace', label: 'Marketplace', icon: <StoreIcon /> },
-        { page: 'Settings', label: 'Settings', icon: <CogIcon /> },
-    ];
-
     return (
-        <div className="flex-1 flex flex-col overflow-hidden">
-            {showOnboarding && <AffiliateOnboardingModal affiliate={affiliate} onComplete={() => setShowOnboarding(false)} onSkip={() => setShowOnboarding(false)} />}
-             <header className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex justify-between items-center">
-                <div className="flex items-center">
-                     <button onClick={handleLogoClick} className="flex items-center focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-cyan-500 rounded-lg" aria-label="Go to affiliate dashboard">
-                        <div className="p-2 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-lg shadow-md">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                            </svg>
-                        </div>
-                        <h2 className="text-xl font-bold text-gray-800 dark:text-white ml-3">Affiliate Portal</h2>
-                    </button>
-                </div>
-                <div className="flex items-center space-x-4">
-                    {canSwitchToCreator && (
-                        <button onClick={() => setActiveView('creator')} className="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-cyan-500">
-                            Switch to Creator View
+        <>
+        {showOnboarding && (
+            <AffiliateOnboardingModal affiliate={affiliate} onComplete={() => setShowOnboarding(false)} onSkip={() => setShowOnboarding(false)} />
+        )}
+        <div className={`flex h-screen bg-gray-100 dark:bg-gray-950 text-gray-800 dark:text-gray-200`}>
+            {/* Sidebar */}
+             <aside className={`fixed inset-y-0 left-0 z-20 w-64 p-4 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                 <button onClick={handleLogoClick} className="flex items-center mb-10 text-left w-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 rounded-lg p-1 -ml-1">
+                    <div className="p-2 bg-cyan-500 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                    </div>
+                    <h1 className="text-2xl font-bold ml-3 text-gray-800 dark:text-white">PartnerFlow</h1>
+                 </button>
+                 <nav className="space-y-2">
+                    <NavItem page="Dashboard" label="Dashboard" icon={<HomeIcon />} />
+                    <NavItem page="Programs" label="My Programs" icon={<BriefcaseIcon />} />
+                    <NavItem page="Resources" label="All Resources" icon={<BookOpenIcon />} />
+                    <NavItem page="Payouts" label="My Payouts" icon={<CreditCardIcon />} />
+                    <NavItem page="Marketplace" label="Marketplace" icon={<StorefrontIcon />} />
+                    <NavItem page="Settings" label="Settings" icon={<CogIcon />} />
+                 </nav>
+            </aside>
+            <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Header */}
+                 <header className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-8 py-4">
+                     <div className="flex items-center">
+                        <button className="text-gray-500 dark:text-gray-400 focus:outline-none md:hidden" onClick={() => setIsSidebarOpen(true)} aria-label="Open sidebar">
+                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
                         </button>
-                    )}
-                     <button onClick={onLogout} className="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-cyan-500">
-                        Logout
-                    </button>
-                    <img src={affiliate.avatar} alt={affiliate.name} className="w-10 h-10 rounded-full" />
-                </div>
-            </header>
-             <div className="flex-1 flex">
-                <nav className="w-64 bg-white dark:bg-gray-800 p-4 border-r border-gray-200 dark:border-gray-700">
-                    <ul className="space-y-2">
-                        {navItems.map(item => (
-                            <li key={item.page}>
-                                <button
-                                    onClick={() => { setActivePage(item.page); setActiveProgram(null); }}
-                                    className={`w-full flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${activePage === item.page && !activeProgram ? 'bg-cyan-500 text-white shadow' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-                                >
-                                    {item.icon}
-                                    <span className="ml-3">{item.label}</span>
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </nav>
-                <main className="flex-1 p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-                    {renderContent()}
+                        <h2 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-white ml-4 md:ml-0">{activeProgram ? activeProgram.company_name : activePage}</h2>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                        {canSwitchToCreator && (
+                            <button onClick={() => setActiveView('creator')} className="px-4 py-2 text-sm font-semibold text-white bg-teal-500 rounded-lg shadow-md hover:bg-teal-600">
+                                Switch to Creator View
+                            </button>
+                        )}
+                        <button onClick={onLogout} className="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-cyan-500">
+                            Logout
+                        </button>
+                        <div className="w-10 h-10">
+                            <img className="w-full h-full rounded-full object-cover" src={affiliate.avatar} alt="User avatar" />
+                        </div>
+                    </div>
+                </header>
+                <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:p-8">
+                    {renderPageContent()}
                 </main>
             </div>
         </div>
+        </>
     );
 };
-
-// Icons
-const HomeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
-const BriefcaseIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
-const GiftIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4H5z" /></svg>;
-const WalletIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H4a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>;
-const StoreIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>;
-const CogIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.096 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
 
 export default AffiliatePortal;
