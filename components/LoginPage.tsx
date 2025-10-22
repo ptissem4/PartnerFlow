@@ -149,30 +149,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onGoogleSignIn, onBack, 
                     </button>
                 </p>
             </div>
-            <div className="w-full max-w-md mt-8 p-4 bg-white dark:bg-gray-900/50 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-                <h3 className="font-semibold text-center text-gray-700 dark:text-gray-300 mb-2">Demo Accounts</h3>
-                <p className="text-xs text-center text-gray-500 dark:text-gray-400 mb-4">Click an email to copy and paste. Use password: <code className="font-mono bg-gray-200 dark:bg-gray-700 px-1 rounded">password</code></p>
-                <ul className="space-y-2 text-sm">
-                    {demoUsers.map(user => (
-                        <li key={user.email} className="flex justify-between items-center">
-                            <span 
-                                onClick={() => {
-                                    navigator.clipboard.writeText(user.email);
-                                    setEmail(user.email);
-                                    setPassword('password');
-                                }}
-                                className="font-mono text-gray-600 dark:text-gray-400 cursor-pointer hover:text-cyan-500"
-                                title="Click to copy email & enter demo password"
-                            >
-                                {user.email}
-                            </span>
-                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 capitalize bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md text-right">
-                               {user.description}
-                            </span>
-                        </li>
-                    ))}
-                </ul>
-            </div>
           </>
         )}
       </div>

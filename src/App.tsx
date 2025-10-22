@@ -217,7 +217,7 @@ const App: React.FC = () => {
                         roles: ['affiliate'], // Default role for Google signups
                         status: 'Active',
                         joinDate: new Date().toISOString(),
-                        onboardingStepCompleted: 0,
+                        onboardingStepCompleted: undefined, // Let the affiliate portal handle this
                     };
                     const { data: newProfileData, error: insertError } = await supabase.from('users').insert(newUser).select().single();
                     if (insertError) {
@@ -552,7 +552,7 @@ const App: React.FC = () => {
         if (useMockData) {
              const newAffiliate: User = {
                 id: crypto.randomUUID(), name, email, avatar: `https://i.pravatar.cc/150?u=${email}`, roles: ['affiliate'], status: 'Active',
-                joinDate: new Date().toISOString().split('T')[0], partnerships: [], onboardingStepCompleted: 0,
+                joinDate: new Date().toISOString().split('T')[0], partnerships: [], onboardingStepCompleted: undefined,
             };
             setUsers(prev => [...prev, newAffiliate]);
             setCurrentUser(newAffiliate);
@@ -568,7 +568,7 @@ const App: React.FC = () => {
         if (data.user) {
             const { error: profileError } = await supabase.from('users').insert({
                 id: data.user.id, name, email, avatar: `https://i.pravatar.cc/150?u=${email}`, roles: ['affiliate'],
-                status: 'Active', joinDate: new Date().toISOString(), partnerships: [], onboardingStepCompleted: 0,
+                status: 'Active', joinDate: new Date().toISOString(), partnerships: [], onboardingStepCompleted: undefined,
             });
 
             if(profileError) { return { success: false, error: `Could not create user profile: ${profileError.message}` }; }
@@ -794,6 +794,7 @@ const App: React.FC = () => {
                     onApply={handleAffiliateApply}
                     onUpdateUser={handleUpdateUser}
                     onBecomeCreator={() => {
+                        setAppView('app');
                         setActiveView('creator');
                         setActivePage('Billing');
                     }}
@@ -925,7 +926,15 @@ const App: React.FC = () => {
                     showToast("Message sent!");
                 }}/>;
             case 'Billing':
-                return <Billing currentUser={currentUser} affiliates={myAffiliates} products={myProducts} onPlanChange={handlePlanChange} isTrialExpired={isTrialExpired} />;
+                return <Billing 
+                            currentUser={currentUser} 
+                            affiliates={myAffiliates} 
+                            products={myProducts} 
+                            onPlanChange={handlePlanChange} 
+                            isTrialExpired={isTrialExpired} 
+                            isUpgradeFlow={activeView === 'creator' && !currentUser.roles.includes('creator')}
+                            onCancelUpgrade={() => setActiveView('affiliate')}
+                        />;
             case 'Settings':
                 return <Settings currentUser={currentUser} userSettings={userSettings} onSettingsChange={handleSettingsChange} setAppView={setAppView} />;
             default:
